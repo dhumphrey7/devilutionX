@@ -1,14 +1,24 @@
+/**
+ * @file automap.cpp
+ *
+ * Implementation of the in-game map overlay.
+ */
 #include "all.h"
 
 DEVILUTION_BEGIN_NAMESPACE
 
-// BUGFIX: only the first 256 elements are ever read
+/**
+ * Maps from tile_id to automap type.
+ * BUGFIX: only the first 256 elements are ever read
+ */
 WORD automaptype[512];
 static int AutoMapX;
 static int AutoMapY;
+/** Specifies whether the automap is enabled. */
 BOOL automapflag;
-char AmShiftTab[31];
+/** Tracks the explored areas of the map. */
 BOOLEAN automapview[DMAXX][DMAXY];
+/** Specifies the scale of the automap. */
 int AutoMapScale;
 int AutoMapXOfs;
 int AutoMapYOfs;
@@ -18,15 +28,17 @@ int AmLine16;
 int AmLine8;
 int AmLine4;
 
-// color used to draw the player's arrow
+/** color used to draw the player's arrow */
 #define COLOR_PLAYER (PAL8_ORANGE + 1)
-// color for bright map lines (doors, stairs etc.)
+/** color for bright map lines (doors, stairs etc.) */
 #define COLOR_BRIGHT PAL8_YELLOW
-// color for dim map lines/dots
+/** color for dim map lines/dots */
 #define COLOR_DIM (PAL16_YELLOW + 8)
+// color for items on automap
+#define COLOR_ITEM (PAL8_BLUE + 1)
 
 #define MAPFLAG_TYPE 0x000F
-// these are in the second byte
+/** these are in the second byte */
 #define MAPFLAG_VERTDOOR 0x01
 #define MAPFLAG_HORZDOOR 0x02
 #define MAPFLAG_VERTARCH 0x04
@@ -36,6 +48,9 @@ int AmLine4;
 #define MAPFLAG_DIRT 0x40
 #define MAPFLAG_STAIRS 0x80
 
+/**
+ * @brief Initializes the automap.
+ */
 void InitAutomapOnce()
 {
 	automapflag = FALSE;
@@ -47,38 +62,34 @@ void InitAutomapOnce()
 	AmLine4 = 2;
 }
 
+/**
+ * @brief Loads the mapping between tile IDs and automap shapes.
+ */
 void InitAutomap()
 {
 	BYTE b1, b2;
 	DWORD dwTiles;
 	int x, y;
 	BYTE *pAFile, *pTmp;
-	int i, j;
-	int d;
-
-	j = 50;
-
-	for (i = 0; i < 31; i++) {
-		d = (j << 6) / 100;
-		AmShiftTab[i] = 2 * (320 / d) + 1;
-		if (320 % d)
-			AmShiftTab[i]++;
-		if (320 % d >= (j << 5) / 100)
-			AmShiftTab[i]++;
-		j += 5;
-	}
+	DWORD i;
 
 	memset(automaptype, 0, sizeof(automaptype));
 
 	switch (leveltype) {
 	case DTYPE_CATHEDRAL:
-		pAFile = LoadFileInMem("Levels\\L1Data\\L1.AMP", &dwTiles);
+		if (currlevel < 21)
+			pAFile = LoadFileInMem("Levels\\L1Data\\L1.AMP", &dwTiles);
+		else
+			pAFile = LoadFileInMem("NLevels\\L5Data\\L5.AMP", &dwTiles);
 		break;
 	case DTYPE_CATACOMBS:
 		pAFile = LoadFileInMem("Levels\\L2Data\\L2.AMP", &dwTiles);
 		break;
 	case DTYPE_CAVES:
-		pAFile = LoadFileInMem("Levels\\L3Data\\L3.AMP", &dwTiles);
+		if (currlevel < 17)
+			pAFile = LoadFileInMem("Levels\\L3Data\\L3.AMP", &dwTiles);
+		else
+			pAFile = LoadFileInMem("NLevels\\L6Data\\L6.AMP", &dwTiles);
 		break;
 	case DTYPE_HELL:
 		pAFile = LoadFileInMem("Levels\\L4Data\\L4.AMP", &dwTiles);
@@ -87,7 +98,7 @@ void InitAutomap()
 		return;
 	}
 
-	dwTiles >>= 1;
+	dwTiles /= 2;
 	pTmp = pAFile;
 
 	for (i = 1; i <= dwTiles; i++) {
@@ -105,6 +116,9 @@ void InitAutomap()
 	}
 }
 
+/**
+ * @brief Displays the automap.
+ */
 void StartAutomap()
 {
 	AutoMapXOfs = 0;
@@ -112,30 +126,45 @@ void StartAutomap()
 	automapflag = TRUE;
 }
 
+/**
+ * @brief Scrolls the automap upwards.
+ */
 void AutomapUp()
 {
 	AutoMapXOfs--;
 	AutoMapYOfs--;
 }
 
+/**
+ * @brief Scrolls the automap downwards.
+ */
 void AutomapDown()
 {
 	AutoMapXOfs++;
 	AutoMapYOfs++;
 }
 
+/**
+ * @brief Scrolls the automap leftwards.
+ */
 void AutomapLeft()
 {
 	AutoMapXOfs--;
 	AutoMapYOfs++;
 }
 
+/**
+ * @brief Scrolls the automap rightwards.
+ */
 void AutomapRight()
 {
 	AutoMapXOfs++;
 	AutoMapYOfs--;
 }
 
+/**
+ * @brief Increases the zoom level of the automap.
+ */
 void AutomapZoomIn()
 {
 	if (AutoMapScale < 200) {
@@ -148,6 +177,9 @@ void AutomapZoomIn()
 	}
 }
 
+/**
+ * @brief Decreases the zoom level of the automap.
+ */
 void AutomapZoomOut()
 {
 	if (AutoMapScale > 50) {
@@ -160,93 +192,10 @@ void AutomapZoomOut()
 	}
 }
 
-void DrawAutomap()
-{
-	int cells;
-	int sx, sy;
-	int i, j;
-	int mapx, mapy;
-
-	if (leveltype == DTYPE_TOWN) {
-		DrawAutomapText();
-		return;
-	}
-
-	gpBufEnd = &gpBuffer[(PANEL_Y)*BUFFER_WIDTH];
-
-	AutoMapX = (ViewX - 16) >> 1;
-	while (AutoMapX + AutoMapXOfs < 0)
-		AutoMapXOfs++;
-	while (AutoMapX + AutoMapXOfs >= DMAXX)
-		AutoMapXOfs--;
-	AutoMapX += AutoMapXOfs;
-
-	AutoMapY = (ViewY - 16) >> 1;
-	while (AutoMapY + AutoMapYOfs < 0)
-		AutoMapYOfs++;
-	while (AutoMapY + AutoMapYOfs >= DMAXY)
-		AutoMapYOfs--;
-	AutoMapY += AutoMapYOfs;
-
-	cells = AmShiftTab[(AutoMapScale - 50) / 5];
-	if (ScrollInfo._sxoff + ScrollInfo._syoff)
-		cells++;
-	mapx = AutoMapX - cells;
-	mapy = AutoMapY - 1;
-
-	if (cells & 1) {
-		sx = 384 - AmLine64 * ((cells - 1) >> 1);
-		sy = 336 - AmLine32 * ((cells + 1) >> 1);
-	} else {
-		sx = 384 - AmLine64 * (cells >> 1) + AmLine32;
-		sy = 336 - AmLine32 * (cells >> 1) - AmLine16;
-	}
-	if (ViewX & 1) {
-		sx -= AmLine16;
-		sy -= AmLine8;
-	}
-	if (ViewY & 1) {
-		sx += AmLine16;
-		sy -= AmLine8;
-	}
-
-	sx += AutoMapScale * ScrollInfo._sxoff / 100 >> 1;
-	sy += AutoMapScale * ScrollInfo._syoff / 100 >> 1;
-	if (invflag || sbookflag) {
-		sx -= 160;
-	}
-	if (chrflag || questlog) {
-		sx += 160;
-	}
-
-	for (i = 0; i <= cells + 1; i++) {
-		int x = sx;
-		int y;
-
-		for (j = 0; j < cells; j++) {
-			WORD maptype = GetAutomapType(mapx + j, mapy - j, TRUE);
-			if (maptype)
-				DrawAutomapTile(x, sy, maptype);
-			x += AmLine64;
-		}
-		mapy++;
-		x = sx - AmLine32;
-		y = sy + AmLine16;
-		for (j = 0; j <= cells; j++) {
-			WORD maptype = GetAutomapType(mapx + j, mapy - j, TRUE);
-			if (maptype)
-				DrawAutomapTile(x, y, maptype);
-			x += AmLine64;
-		}
-		mapx++;
-		sy += AmLine32;
-	}
-	DrawAutomapPlr();
-	DrawAutomapText();
-	gpBufEnd = &gpBuffer[BUFFER_WIDTH * (SCREEN_HEIGHT + SCREEN_Y)];
-}
-
-void DrawAutomapTile(int sx, int sy, WORD automap_type)
+/**
+ * @brief Renders the given automap shape at the specified screen coordinates.
+ */
+static void DrawAutomapTile(CelOutputBuffer out, int sx, int sy, WORD automap_type)
 {
 	BOOL do_vert;
 	BOOL do_horz;
@@ -257,29 +206,29 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 	BYTE flags = automap_type >> 8;
 
 	if (flags & MAPFLAG_DIRT) {
-		ENG_set_pixel(sx, sy, COLOR_DIM);
-		ENG_set_pixel(sx - AmLine8, sy - AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx - AmLine8, sy + AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx + AmLine8, sy - AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx + AmLine8, sy + AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx - AmLine16, sy, COLOR_DIM);
-		ENG_set_pixel(sx + AmLine16, sy, COLOR_DIM);
-		ENG_set_pixel(sx, sy - AmLine8, COLOR_DIM);
-		ENG_set_pixel(sx, sy + AmLine8, COLOR_DIM);
-		ENG_set_pixel(sx + AmLine8 - AmLine32, sy + AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx - AmLine8 + AmLine32, sy + AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx - AmLine16, sy + AmLine8, COLOR_DIM);
-		ENG_set_pixel(sx + AmLine16, sy + AmLine8, COLOR_DIM);
-		ENG_set_pixel(sx - AmLine8, sy + AmLine16 - AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx + AmLine8, sy + AmLine16 - AmLine4, COLOR_DIM);
-		ENG_set_pixel(sx, sy + AmLine16, COLOR_DIM);
+		SetPixel(out, sx, sy, COLOR_DIM);
+		SetPixel(out, sx - AmLine8, sy - AmLine4, COLOR_DIM);
+		SetPixel(out, sx - AmLine8, sy + AmLine4, COLOR_DIM);
+		SetPixel(out, sx + AmLine8, sy - AmLine4, COLOR_DIM);
+		SetPixel(out, sx + AmLine8, sy + AmLine4, COLOR_DIM);
+		SetPixel(out, sx - AmLine16, sy, COLOR_DIM);
+		SetPixel(out, sx + AmLine16, sy, COLOR_DIM);
+		SetPixel(out, sx, sy - AmLine8, COLOR_DIM);
+		SetPixel(out, sx, sy + AmLine8, COLOR_DIM);
+		SetPixel(out, sx + AmLine8 - AmLine32, sy + AmLine4, COLOR_DIM);
+		SetPixel(out, sx - AmLine8 + AmLine32, sy + AmLine4, COLOR_DIM);
+		SetPixel(out, sx - AmLine16, sy + AmLine8, COLOR_DIM);
+		SetPixel(out, sx + AmLine16, sy + AmLine8, COLOR_DIM);
+		SetPixel(out, sx - AmLine8, sy + AmLine16 - AmLine4, COLOR_DIM);
+		SetPixel(out, sx + AmLine8, sy + AmLine16 - AmLine4, COLOR_DIM);
+		SetPixel(out, sx, sy + AmLine16, COLOR_DIM);
 	}
 
 	if (flags & MAPFLAG_STAIRS) {
-		DrawLine(sx - AmLine8, sy - AmLine8 - AmLine4, sx + AmLine8 + AmLine16, sy + AmLine4, COLOR_BRIGHT);
-		DrawLine(sx - AmLine16, sy - AmLine8, sx + AmLine16, sy + AmLine8, COLOR_BRIGHT);
-		DrawLine(sx - AmLine16 - AmLine8, sy - AmLine4, sx + AmLine8, sy + AmLine8 + AmLine4, COLOR_BRIGHT);
-		DrawLine(sx - AmLine32, sy, sx, sy + AmLine16, COLOR_BRIGHT);
+		DrawLineTo(out, sx - AmLine8, sy - AmLine8 - AmLine4, sx + AmLine8 + AmLine16, sy + AmLine4, COLOR_BRIGHT);
+		DrawLineTo(out, sx - AmLine16, sy - AmLine8, sx + AmLine16, sy + AmLine8, COLOR_BRIGHT);
+		DrawLineTo(out, sx - AmLine16 - AmLine8, sy - AmLine4, sx + AmLine8, sy + AmLine8 + AmLine4, COLOR_BRIGHT);
+		DrawLineTo(out, sx - AmLine32, sy, sx, sy + AmLine16, COLOR_BRIGHT);
 	}
 
 	do_vert = FALSE;
@@ -292,10 +241,10 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 		y1 = sy - AmLine16;
 		x2 = x1 + AmLine32;
 		y2 = sy - AmLine8;
-		DrawLine(sx, y1, x1, y2, COLOR_DIM);
-		DrawLine(sx, y1, x2, y2, COLOR_DIM);
-		DrawLine(sx, sy, x1, y2, COLOR_DIM);
-		DrawLine(sx, sy, x2, y2, COLOR_DIM);
+		DrawLineTo(out, sx, y1, x1, y2, COLOR_DIM);
+		DrawLineTo(out, sx, y1, x2, y2, COLOR_DIM);
+		DrawLineTo(out, sx, sy, x1, y2, COLOR_DIM);
+		DrawLineTo(out, sx, sy, x2, y2, COLOR_DIM);
 		break;
 	case 2:
 	case 5:
@@ -336,15 +285,15 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 			y1 = sy - AmLine16;
 			y2 = sy - AmLine8;
 
-			DrawLine(sx, y1, sx - AmLine8, y1 + AmLine4, COLOR_DIM);
-			DrawLine(x1, sy, x1 + AmLine8, sy - AmLine4, COLOR_DIM);
-			DrawLine(x2, y1, x1, y2, COLOR_BRIGHT);
-			DrawLine(x2, y1, sx, y2, COLOR_BRIGHT);
-			DrawLine(x2, sy, x1, y2, COLOR_BRIGHT);
-			DrawLine(x2, sy, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, sx, y1, sx - AmLine8, y1 + AmLine4, COLOR_DIM);
+			DrawLineTo(out, x1, sy, x1 + AmLine8, sy - AmLine4, COLOR_DIM);
+			DrawLineTo(out, x2, y1, x1, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x2, y1, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x2, sy, x1, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x2, sy, sx, y2, COLOR_BRIGHT);
 		}
 		if (flags & MAPFLAG_VERTGRATE) { // right-facing half-wall
-			DrawLine(sx - AmLine16, sy - AmLine8, sx - AmLine32, sy, COLOR_DIM);
+			DrawLineTo(out, sx - AmLine16, sy - AmLine8, sx - AmLine32, sy, COLOR_DIM);
 			flags |= MAPFLAG_VERTARCH;
 		}
 		if (flags & MAPFLAG_VERTARCH) { // window or passable column
@@ -353,13 +302,13 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 			x2 = x1 + AmLine32;
 			y2 = sy - AmLine8;
 
-			DrawLine(sx, y1, x1, y2, COLOR_DIM);
-			DrawLine(sx, y1, x2, y2, COLOR_DIM);
-			DrawLine(sx, sy, x1, y2, COLOR_DIM);
-			DrawLine(sx, sy, x2, y2, COLOR_DIM);
+			DrawLineTo(out, sx, y1, x1, y2, COLOR_DIM);
+			DrawLineTo(out, sx, y1, x2, y2, COLOR_DIM);
+			DrawLineTo(out, sx, sy, x1, y2, COLOR_DIM);
+			DrawLineTo(out, sx, sy, x2, y2, COLOR_DIM);
 		}
-		if (!(flags & (MAPFLAG_VERTDOOR | MAPFLAG_VERTGRATE | MAPFLAG_VERTARCH)))
-			DrawLine(sx, sy - AmLine16, sx - AmLine32, sy, COLOR_DIM);
+		if ((flags & (MAPFLAG_VERTDOOR | MAPFLAG_VERTGRATE | MAPFLAG_VERTARCH)) == 0)
+			DrawLineTo(out, sx, sy - AmLine16, sx - AmLine32, sy, COLOR_DIM);
 	}
 
 	if (do_horz) { // left-facing obstacle
@@ -369,15 +318,15 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 			y1 = sy - AmLine16;
 			y2 = sy - AmLine8;
 
-			DrawLine(sx, y1, sx + AmLine8, y1 + AmLine4, COLOR_DIM);
-			DrawLine(x2, sy, x2 - AmLine8, sy - AmLine4, COLOR_DIM);
-			DrawLine(x1, y1, sx, y2, COLOR_BRIGHT);
-			DrawLine(x1, y1, x2, y2, COLOR_BRIGHT);
-			DrawLine(x1, sy, sx, y2, COLOR_BRIGHT);
-			DrawLine(x1, sy, x2, y2, COLOR_BRIGHT);
+			DrawLineTo(out, sx, y1, sx + AmLine8, y1 + AmLine4, COLOR_DIM);
+			DrawLineTo(out, x2, sy, x2 - AmLine8, sy - AmLine4, COLOR_DIM);
+			DrawLineTo(out, x1, y1, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x1, y1, x2, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x1, sy, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x1, sy, x2, y2, COLOR_BRIGHT);
 		}
 		if (flags & MAPFLAG_HORZGRATE) {
-			DrawLine(sx + AmLine16, sy - AmLine8, sx + AmLine32, sy, COLOR_DIM);
+			DrawLineTo(out, sx + AmLine16, sy - AmLine8, sx + AmLine32, sy, COLOR_DIM);
 			flags |= MAPFLAG_HORZARCH;
 		}
 		if (flags & MAPFLAG_HORZARCH) {
@@ -386,13 +335,13 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 			x2 = x1 + AmLine32;
 			y2 = sy - AmLine8;
 
-			DrawLine(sx, y1, x1, y2, COLOR_DIM);
-			DrawLine(sx, y1, x2, y2, COLOR_DIM);
-			DrawLine(sx, sy, x1, y2, COLOR_DIM);
-			DrawLine(sx, sy, x2, y2, COLOR_DIM);
+			DrawLineTo(out, sx, y1, x1, y2, COLOR_DIM);
+			DrawLineTo(out, sx, y1, x2, y2, COLOR_DIM);
+			DrawLineTo(out, sx, sy, x1, y2, COLOR_DIM);
+			DrawLineTo(out, sx, sy, x2, y2, COLOR_DIM);
 		}
-		if (!(flags & (MAPFLAG_HORZDOOR | MAPFLAG_HORZGRATE | MAPFLAG_HORZARCH)))
-			DrawLine(sx, sy - AmLine16, sx + AmLine32, sy, COLOR_DIM);
+		if ((flags & (MAPFLAG_HORZDOOR | MAPFLAG_HORZGRATE | MAPFLAG_HORZARCH)) == 0)
+			DrawLineTo(out, sx, sy - AmLine16, sx + AmLine32, sy, COLOR_DIM);
 	}
 
 	// for caves the horz/vert flags are switched
@@ -403,14 +352,14 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 			y1 = sy + AmLine16;
 			y2 = sy + AmLine8;
 
-			DrawLine(sx, y1, sx - AmLine8, y1 - AmLine4, COLOR_DIM);
-			DrawLine(x1, sy, x1 + AmLine8, sy + AmLine4, COLOR_DIM);
-			DrawLine(x2, y1, x1, y2, COLOR_BRIGHT);
-			DrawLine(x2, y1, sx, y2, COLOR_BRIGHT);
-			DrawLine(x2, sy, x1, y2, COLOR_BRIGHT);
-			DrawLine(x2, sy, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, sx, y1, sx - AmLine8, y1 - AmLine4, COLOR_DIM);
+			DrawLineTo(out, x1, sy, x1 + AmLine8, sy + AmLine4, COLOR_DIM);
+			DrawLineTo(out, x2, y1, x1, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x2, y1, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x2, sy, x1, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x2, sy, sx, y2, COLOR_BRIGHT);
 		} else
-			DrawLine(sx, sy + AmLine16, sx - AmLine32, sy, COLOR_DIM);
+			DrawLineTo(out, sx, sy + AmLine16, sx - AmLine32, sy, COLOR_DIM);
 	}
 
 	if (do_cave_vert) {
@@ -420,90 +369,180 @@ void DrawAutomapTile(int sx, int sy, WORD automap_type)
 			y1 = sy + AmLine16;
 			y2 = sy + AmLine8;
 
-			DrawLine(sx, y1, sx + AmLine8, y1 - AmLine4, COLOR_DIM);
-			DrawLine(x2, sy, x2 - AmLine8, sy + AmLine4, COLOR_DIM);
-			DrawLine(x1, y1, sx, y2, COLOR_BRIGHT);
-			DrawLine(x1, y1, x2, y2, COLOR_BRIGHT);
-			DrawLine(x1, sy, sx, y2, COLOR_BRIGHT);
-			DrawLine(x1, sy, x2, y2, COLOR_BRIGHT);
+			DrawLineTo(out, sx, y1, sx + AmLine8, y1 - AmLine4, COLOR_DIM);
+			DrawLineTo(out, x2, sy, x2 - AmLine8, sy + AmLine4, COLOR_DIM);
+			DrawLineTo(out, x1, y1, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x1, y1, x2, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x1, sy, sx, y2, COLOR_BRIGHT);
+			DrawLineTo(out, x1, sy, x2, y2, COLOR_BRIGHT);
 		} else
-			DrawLine(sx, sy + AmLine16, sx + AmLine32, sy, COLOR_DIM);
+			DrawLineTo(out, sx, sy + AmLine16, sx + AmLine32, sy, COLOR_DIM);
 	}
 }
 
-void DrawAutomapPlr()
+static void DrawAutomapItem(CelOutputBuffer out, int x, int y, BYTE color)
 {
-	int px, py;
+	int x1, y1, x2, y2;
+
+	x1 = x - AmLine32 / 2;
+	y1 = y - AmLine16 / 2;
+	x2 = x1 + AmLine64 / 2;
+	y2 = y1 + AmLine32 / 2;
+	DrawLineTo(out, x, y1, x1, y, color);
+	DrawLineTo(out, x, y1, x2, y, color);
+	DrawLineTo(out, x, y2, x1, y, color);
+	DrawLineTo(out, x, y2, x2, y, color);
+}
+
+static void SearchAutomapItem(CelOutputBuffer out)
+{
 	int x, y;
+	int x1, y1, x2, y2;
+	int px, py;
+	int i, j;
 
 	if (plr[myplr]._pmode == PM_WALK3) {
-		x = plr[myplr]._px;
-		y = plr[myplr]._py;
+		x = plr[myplr]._pfutx;
+		y = plr[myplr]._pfuty;
 		if (plr[myplr]._pdir == DIR_W)
 			x++;
 		else
 			y++;
 	} else {
-		x = plr[myplr].WorldX;
-		y = plr[myplr].WorldY;
+		x = plr[myplr]._px;
+		y = plr[myplr]._py;
+	}
+
+	x1 = x - 8;
+	if (x1 < 0)
+		x1 = 0;
+	else if (x1 > MAXDUNX)
+		x1 = MAXDUNX;
+
+	y1 = y - 8;
+	if (y1 < 0)
+		y1 = 0;
+	else if (y1 > MAXDUNY)
+		y1 = MAXDUNY;
+
+	x2 = x + 8;
+	if (x2 < 0)
+		x2 = 0;
+	else if (x2 > MAXDUNX)
+		x2 = MAXDUNX;
+
+	y2 = y + 8;
+	if (y2 < 0)
+		y2 = 0;
+	else if (y2 > MAXDUNY)
+		y2 = MAXDUNY;
+
+	for (i = x1; i < x2; i++) {
+		for (j = y1; j < y2; j++) {
+			if (dItem[i][j] != 0) {
+				px = i - 2 * AutoMapXOfs - ViewX;
+				py = j - 2 * AutoMapYOfs - ViewY;
+
+				x = (ScrollInfo._sxoff * AutoMapScale / 100 >> 1) + (px - py) * AmLine16 + SCREEN_WIDTH / 2 + SCREEN_X;
+				y = (ScrollInfo._syoff * AutoMapScale / 100 >> 1) + (px + py) * AmLine8 + (SCREEN_HEIGHT - PANEL_HEIGHT) / 2 + SCREEN_Y;
+
+				if (PANELS_COVER) {
+					if (invflag || sbookflag)
+						x -= 160;
+					if (chrflag || questlog)
+						x += 160;
+				}
+				y -= AmLine8;
+				DrawAutomapItem(out, x, y, COLOR_ITEM);
+			}
+		}
+	}
+}
+
+/**
+ * @brief Renders an arrow on the automap, centered on and facing the direction of the player.
+ */
+static void DrawAutomapPlr(CelOutputBuffer out, int pnum)
+{
+	int px, py;
+	int x, y;
+	int playerColor;
+
+	playerColor = COLOR_PLAYER + (8 * pnum) % 128;
+
+	if (plr[pnum]._pmode == PM_WALK3) {
+		x = plr[pnum]._pfutx;
+		y = plr[pnum]._pfuty;
+		if (plr[pnum]._pdir == DIR_W)
+			x++;
+		else
+			y++;
+	} else {
+		x = plr[pnum]._px;
+		y = plr[pnum]._py;
 	}
 	px = x - 2 * AutoMapXOfs - ViewX;
 	py = y - 2 * AutoMapYOfs - ViewY;
 
-	x = (plr[myplr]._pxoff * AutoMapScale / 100 >> 1) + (ScrollInfo._sxoff * AutoMapScale / 100 >> 1) + (px - py) * AmLine16 + 384;
-	y = (plr[myplr]._pyoff * AutoMapScale / 100 >> 1) + (ScrollInfo._syoff * AutoMapScale / 100 >> 1) + (px + py) * AmLine8 + 336;
+	x = (plr[pnum]._pxoff * AutoMapScale / 100 >> 1) + (ScrollInfo._sxoff * AutoMapScale / 100 >> 1) + (px - py) * AmLine16 + SCREEN_WIDTH / 2 + SCREEN_X;
+	y = (plr[pnum]._pyoff * AutoMapScale / 100 >> 1) + (ScrollInfo._syoff * AutoMapScale / 100 >> 1) + (px + py) * AmLine8 + (SCREEN_HEIGHT - PANEL_HEIGHT) / 2 + SCREEN_Y;
 
-	if (invflag || sbookflag)
-		x -= 160;
-	if (chrflag || questlog)
-		x += 160;
+	if (PANELS_COVER) {
+		if (invflag || sbookflag)
+			x -= SCREEN_WIDTH / 4;
+		if (chrflag || questlog)
+			x += SCREEN_WIDTH / 4;
+	}
 	y -= AmLine8;
 
-	switch (plr[myplr]._pdir) {
+	switch (plr[pnum]._pdir) {
 	case DIR_N:
-		DrawLine(x, y, x, y - AmLine16, COLOR_PLAYER);
-		DrawLine(x, y - AmLine16, x - AmLine4, y - AmLine8, COLOR_PLAYER);
-		DrawLine(x, y - AmLine16, x + AmLine4, y - AmLine8, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x, y - AmLine16, playerColor);
+		DrawLineTo(out, x, y - AmLine16, x - AmLine4, y - AmLine8, playerColor);
+		DrawLineTo(out, x, y - AmLine16, x + AmLine4, y - AmLine8, playerColor);
 		break;
 	case DIR_NE:
-		DrawLine(x, y, x + AmLine16, y - AmLine8, COLOR_PLAYER);
-		DrawLine(x + AmLine16, y - AmLine8, x + AmLine8, y - AmLine8, COLOR_PLAYER);
-		DrawLine(x + AmLine16, y - AmLine8, x + AmLine8 + AmLine4, y, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x + AmLine16, y - AmLine8, playerColor);
+		DrawLineTo(out, x + AmLine16, y - AmLine8, x + AmLine8, y - AmLine8, playerColor);
+		DrawLineTo(out, x + AmLine16, y - AmLine8, x + AmLine8 + AmLine4, y, playerColor);
 		break;
 	case DIR_E:
-		DrawLine(x, y, x + AmLine16, y, COLOR_PLAYER);
-		DrawLine(x + AmLine16, y, x + AmLine8, y - AmLine4, COLOR_PLAYER);
-		DrawLine(x + AmLine16, y, x + AmLine8, y + AmLine4, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x + AmLine16, y, playerColor);
+		DrawLineTo(out, x + AmLine16, y, x + AmLine8, y - AmLine4, playerColor);
+		DrawLineTo(out, x + AmLine16, y, x + AmLine8, y + AmLine4, playerColor);
 		break;
 	case DIR_SE:
-		DrawLine(x, y, x + AmLine16, y + AmLine8, COLOR_PLAYER);
-		DrawLine(x + AmLine16, y + AmLine8, x + AmLine8 + AmLine4, y, COLOR_PLAYER);
-		DrawLine(x + AmLine16, y + AmLine8, x + AmLine8, y + AmLine8, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x + AmLine16, y + AmLine8, playerColor);
+		DrawLineTo(out, x + AmLine16, y + AmLine8, x + AmLine8 + AmLine4, y, playerColor);
+		DrawLineTo(out, x + AmLine16, y + AmLine8, x + AmLine8, y + AmLine8, playerColor);
 		break;
 	case DIR_S:
-		DrawLine(x, y, x, y + AmLine16, COLOR_PLAYER);
-		DrawLine(x, y + AmLine16, x + AmLine4, y + AmLine8, COLOR_PLAYER);
-		DrawLine(x, y + AmLine16, x - AmLine4, y + AmLine8, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x, y + AmLine16, playerColor);
+		DrawLineTo(out, x, y + AmLine16, x + AmLine4, y + AmLine8, playerColor);
+		DrawLineTo(out, x, y + AmLine16, x - AmLine4, y + AmLine8, playerColor);
 		break;
 	case DIR_SW:
-		DrawLine(x, y, x - AmLine16, y + AmLine8, COLOR_PLAYER);
-		DrawLine(x - AmLine16, y + AmLine8, x - AmLine4 - AmLine8, y, COLOR_PLAYER);
-		DrawLine(x - AmLine16, y + AmLine8, x - AmLine8, y + AmLine8, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x - AmLine16, y + AmLine8, playerColor);
+		DrawLineTo(out, x - AmLine16, y + AmLine8, x - AmLine4 - AmLine8, y, playerColor);
+		DrawLineTo(out, x - AmLine16, y + AmLine8, x - AmLine8, y + AmLine8, playerColor);
 		break;
 	case DIR_W:
-		DrawLine(x, y, x - AmLine16, y, COLOR_PLAYER);
-		DrawLine(x - AmLine16, y, x - AmLine8, y - AmLine4, COLOR_PLAYER);
-		DrawLine(x - AmLine16, y, x - AmLine8, y + AmLine4, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x - AmLine16, y, playerColor);
+		DrawLineTo(out, x - AmLine16, y, x - AmLine8, y - AmLine4, playerColor);
+		DrawLineTo(out, x - AmLine16, y, x - AmLine8, y + AmLine4, playerColor);
 		break;
 	case DIR_NW:
-		DrawLine(x, y, x - AmLine16, y - AmLine8, COLOR_PLAYER);
-		DrawLine(x - AmLine16, y - AmLine8, x - AmLine8, y - AmLine8, COLOR_PLAYER);
-		DrawLine(x - AmLine16, y - AmLine8, x - AmLine4 - AmLine8, y, COLOR_PLAYER);
+		DrawLineTo(out, x, y, x - AmLine16, y - AmLine8, playerColor);
+		DrawLineTo(out, x - AmLine16, y - AmLine8, x - AmLine8, y - AmLine8, playerColor);
+		DrawLineTo(out, x - AmLine16, y - AmLine8, x - AmLine4 - AmLine8, y, playerColor);
 		break;
 	}
 }
 
-WORD GetAutomapType(int x, int y, BOOL view)
+/**
+ * @brief Returns the automap shape at the given coordinate.
+ */
+static WORD GetAutomapType(int x, int y, BOOL view)
 {
 	WORD rv;
 
@@ -544,29 +583,142 @@ WORD GetAutomapType(int x, int y, BOOL view)
 	return rv;
 }
 
-void DrawAutomapText()
+/**
+ * @brief Renders game info, such as the name of the current level, and in multi player the name of the game and the game password.
+ */
+static void DrawAutomapText(CelOutputBuffer out)
 {
+	// TODO: Use the `out` buffer instead of the global one.
+
 	char desc[256];
 	int nextline = 20;
 
-	if (gbMaxPlayers > 1) {
+	if (gbIsMultiplayer) {
 		strcat(strcpy(desc, "game: "), szPlayerName);
-		PrintGameStr(8, 20, desc, COL_GOLD);
+		PrintGameStr(out, 8, 20, desc, COL_GOLD);
 		nextline = 35;
 		if (szPlayerDescript[0]) {
 			strcat(strcpy(desc, "password: "), szPlayerDescript);
-			PrintGameStr(8, 35, desc, COL_GOLD);
+			PrintGameStr(out, 8, 35, desc, COL_GOLD);
 			nextline = 50;
 		}
 	}
-	if (setlevel)
-		PrintGameStr(8, nextline, quest_level_names[(BYTE)setlvlnum], COL_GOLD);
-	else if (currlevel) {
-		sprintf(desc, "Level: %i", currlevel);
-		PrintGameStr(8, nextline, desc, COL_GOLD);
+	if (setlevel) {
+		PrintGameStr(out, 8, nextline, quest_level_names[(BYTE)setlvlnum], COL_GOLD);
+	} else if (currlevel != 0) {
+		if (currlevel < 17 || currlevel > 20) {
+			if (currlevel < 21 || currlevel > 24)
+				sprintf(desc, "Level: %i", currlevel);
+			else
+				sprintf(desc, "Level: Crypt %i", currlevel - 20);
+		} else {
+			sprintf(desc, "Level: Nest %i", currlevel - 16);
+		}
+		PrintGameStr(out, 8, nextline, desc, COL_GOLD);
 	}
 }
 
+void DrawAutomap(CelOutputBuffer out)
+{
+	int cells;
+	int sx, sy;
+	int i, j, d;
+	int mapx, mapy;
+
+	if (leveltype == DTYPE_TOWN) {
+		DrawAutomapText(out);
+		return;
+	}
+
+	AutoMapX = (ViewX - 16) >> 1;
+	while (AutoMapX + AutoMapXOfs < 0)
+		AutoMapXOfs++;
+	while (AutoMapX + AutoMapXOfs >= DMAXX)
+		AutoMapXOfs--;
+	AutoMapX += AutoMapXOfs;
+
+	AutoMapY = (ViewY - 16) >> 1;
+	while (AutoMapY + AutoMapYOfs < 0)
+		AutoMapYOfs++;
+	while (AutoMapY + AutoMapYOfs >= DMAXY)
+		AutoMapYOfs--;
+	AutoMapY += AutoMapYOfs;
+
+	d = (AutoMapScale << 6) / 100;
+	cells = 2 * (SCREEN_WIDTH / 2 / d) + 1;
+	if ((SCREEN_WIDTH / 2) % d)
+		cells++;
+	if ((SCREEN_WIDTH / 2) % d >= (AutoMapScale << 5) / 100)
+		cells++;
+
+	if (ScrollInfo._sxoff + ScrollInfo._syoff)
+		cells++;
+	mapx = AutoMapX - cells;
+	mapy = AutoMapY - 1;
+
+	if (cells & 1) {
+		sx = SCREEN_WIDTH / 2 + SCREEN_X - AmLine64 * ((cells - 1) >> 1);
+		sy = (SCREEN_HEIGHT - PANEL_HEIGHT) / 2 + SCREEN_Y - AmLine32 * ((cells + 1) >> 1);
+	} else {
+		sx = SCREEN_WIDTH / 2 + SCREEN_X - AmLine64 * (cells >> 1) + AmLine32;
+		sy = (SCREEN_HEIGHT - PANEL_HEIGHT) / 2 + SCREEN_Y - AmLine32 * (cells >> 1) - AmLine16;
+	}
+	if (ViewX & 1) {
+		sx -= AmLine16;
+		sy -= AmLine8;
+	}
+	if (ViewY & 1) {
+		sx += AmLine16;
+		sy -= AmLine8;
+	}
+
+	sx += AutoMapScale * ScrollInfo._sxoff / 100 >> 1;
+	sy += AutoMapScale * ScrollInfo._syoff / 100 >> 1;
+	if (PANELS_COVER) {
+		if (invflag || sbookflag) {
+			sx -= SCREEN_WIDTH / 4;
+		}
+		if (chrflag || questlog) {
+			sx += SCREEN_WIDTH / 4;
+		}
+	}
+
+	for (i = 0; i <= cells + 1; i++) {
+		int x = sx;
+		int y;
+
+		for (j = 0; j < cells; j++) {
+			WORD maptype = GetAutomapType(mapx + j, mapy - j, TRUE);
+			if (maptype != 0)
+				DrawAutomapTile(out, x, sy, maptype);
+			x += AmLine64;
+		}
+		mapy++;
+		x = sx - AmLine32;
+		y = sy + AmLine16;
+		for (j = 0; j <= cells; j++) {
+			WORD maptype = GetAutomapType(mapx + j, mapy - j, TRUE);
+			if (maptype != 0)
+				DrawAutomapTile(out, x, y, maptype);
+			x += AmLine64;
+		}
+		mapx++;
+		sy += AmLine32;
+	}
+
+	for (int pnum = 0; pnum < MAX_PLRS; pnum++) {
+		if (plr[pnum].plrlevel == plr[myplr].plrlevel && plr[pnum].plractive) {
+			DrawAutomapPlr(out, pnum);
+		}
+	}
+	if (AutoMapShowItems)
+		SearchAutomapItem(out);
+	DrawAutomapText(out);
+}
+
+/**
+ * @brief Marks the given coordinate as within view on the automap.
+ */
 void SetAutomapView(int x, int y)
 {
 	WORD maptype, solid;
@@ -584,7 +736,7 @@ void SetAutomapView(int x, int y)
 	maptype = GetAutomapType(xx, yy, FALSE);
 	solid = maptype & 0x4000;
 
-	switch (maptype & 0xF) {
+	switch (maptype & MAPFLAG_TYPE) {
 	case 2:
 		if (solid) {
 			if (GetAutomapType(xx, yy + 1, FALSE) == 0x4007)
@@ -639,6 +791,9 @@ void SetAutomapView(int x, int y)
 	}
 }
 
+/**
+ * @brief Resets the zoom level of the automap.
+ */
 void AutomapZoomReset()
 {
 	AutoMapXOfs = 0;

@@ -1,42 +1,37 @@
-//HEADER_GOES_HERE
+/**
+ * @file gmenu.h
+ *
+ * Interface of the in-game navigation and interaction.
+ */
 #ifndef __GMENU_H__
 #define __GMENU_H__
 
-extern BYTE *optbar_cel;
-extern BOOLEAN mouseNavigation;
-extern BYTE *PentSpin_cel;
-extern BYTE *BigTGold_cel;
-extern int dword_634474;
-extern char byte_634478;
-extern void (*dword_63447C)(TMenuItem *);
+DEVILUTION_BEGIN_NAMESPACE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern TMenuItem *sgpCurrentMenu;
-extern BYTE *option_cel;
-extern int sgCurrentMenuIdx;
 
 void gmenu_draw_pause();
-void gmenu_print_text(int x, int y, char *pszStr);
 void FreeGMenu();
 void gmenu_init_menu();
 BOOL gmenu_is_active();
 void gmenu_set_items(TMenuItem *pItem, void (*gmFunc)(TMenuItem *));
-void gmenu_up_down(BOOL isDown);
 void gmenu_draw();
-void gmenu_draw_menu_item(TMenuItem *pItem, int y);
-void gmenu_clear_buffer(int x, int y, int width, int height);
-int gmenu_get_lfont(TMenuItem *pItem);
 BOOL gmenu_presskeys(int vkey);
-void gmenu_left_right(BOOL isRight);
 BOOL gmenu_on_mouse_move();
-BOOLEAN gmenu_get_mouse_slider(int *plOffset);
 BOOL gmenu_left_mouse(BOOL isDown);
 void gmenu_enable(TMenuItem *pMenuItem, BOOL enable);
 void gmenu_slider_set(TMenuItem *pItem, int min, int max, int gamma);
 int gmenu_slider_get(TMenuItem *pItem, int min, int max);
 void gmenu_slider_steps(TMenuItem *pItem, int dwTicks);
 
-/* rdata */
+#ifdef __cplusplus
+}
+#endif
 
-extern const BYTE lfontframe[127];
-extern const BYTE lfontkern[56];
+DEVILUTION_END_NAMESPACE
 
 #endif /* __GMENU_H__ */

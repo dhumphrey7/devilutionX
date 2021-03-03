@@ -1,6 +1,9 @@
 #include "DiabloUI/ttf_render_wrapped.h"
 
 #include <cstddef>
+#ifdef __3DS__
+#include <string.h>
+#endif
 
 namespace dvl {
 
@@ -19,7 +22,7 @@ SDL_bool CharacterIsDelimiter(char c, const char *delimiters)
 } // namespace
 
 // Based on SDL 2.0.12 TTF_RenderUTF8_Blended_Wrapped
-SDL_Surface *RenderUTF8_Solid_Wrapped(TTF_Font *font, const char *text, SDL_Color fg, Uint32 wrapLength, TextAlignment x_align)
+SDL_Surface *RenderUTF8_Solid_Wrapped(TTF_Font *font, const char *text, SDL_Color fg, Uint32 wrapLength, const int x_align)
 {
 	int width, height;
 	SDL_Surface *textbuf;
@@ -29,40 +32,48 @@ SDL_Surface *RenderUTF8_Solid_Wrapped(TTF_Font *font, const char *text, SDL_Colo
 	/* Get the dimensions of the text surface */
 	if ((TTF_SizeUTF8(font, text, &width, &height) < 0) || !width) {
 		TTF_SetError("Text has zero width");
-		return nullptr;
+		return NULL;
 	}
 
 	std::size_t numLines = 1;
-	str = nullptr;
-	strLines = nullptr;
+	str = NULL;
+	strLines = NULL;
 	if (wrapLength > 0 && *text) {
 		const char *wrapDelims = " \t\r\n";
 		int w, h;
 		char *spot, *tok, *next_tok, *end;
 		char delim;
+#ifdef __3DS__
+		size_t str_len = strlen(text);
+#else
 		size_t str_len = SDL_strlen(text);
+#endif
 
 		numLines = 0;
 
 		str = SDL_stack_alloc(char, str_len + 1);
-		if (str == nullptr) {
+		if (str == NULL) {
 			TTF_SetError("Out of memory");
-			return nullptr;
+			return NULL;
 		}
 
+#ifdef __3DS__
+		memcpy(str, text, str_len + 1);
+#else
 		SDL_strlcpy(str, text, str_len + 1);
+#endif
 		tok = str;
 		end = str + str_len;
 		do {
 			strLines = (char **)SDL_realloc(strLines, (numLines + 1) * sizeof(*strLines));
 			if (!strLines) {
 				TTF_SetError("Out of memory");
-				return nullptr;
+				return NULL;
 			}
 			strLines[numLines++] = tok;
 
 			/* Look for the end of the line */
-			if ((spot = SDL_strchr(tok, '\r')) != nullptr || (spot = SDL_strchr(tok, '\n')) != nullptr) {
+			if ((spot = SDL_strchr(tok, '\r')) != NULL || (spot = SDL_strchr(tok, '\n')) != NULL) {
 				if (*spot == '\r') {
 					++spot;
 				}
@@ -115,11 +126,11 @@ SDL_Surface *RenderUTF8_Solid_Wrapped(TTF_Font *font, const char *text, SDL_Colo
 
 	/* Create the target surface */
 	textbuf = SDL_CreateRGBSurface(SDL_SWSURFACE, (numLines > 1) ? wrapLength : width, height * numLines + (lineSpace * (numLines - 1)), 8, 0, 0, 0, 0);
-	if (textbuf == nullptr) {
+	if (textbuf == NULL) {
 		if (strLines)
 			SDL_free(strLines);
 		SDL_stack_free(str);
-		return nullptr;
+		return NULL;
 	}
 
 	/* Fill the palette with the foreground color */
@@ -142,28 +153,29 @@ SDL_Surface *RenderUTF8_Solid_Wrapped(TTF_Font *font, const char *text, SDL_Colo
 			continue;
 		}
 		SDL_Surface *tmp = TTF_RenderUTF8_Solid(font, text, fg);
-		if (tmp == nullptr) {
+		if (tmp == NULL) {
 			SDL_Log(TTF_GetError());
 			SDL_FreeSurface(textbuf);
 			SDL_free(strLines);
 			SDL_stack_free(str);
-			return nullptr;
+			return NULL;
 		}
-		dest.w = static_cast<decltype(SDL_Rect().w)>(tmp->w);
-		dest.h = static_cast<decltype(SDL_Rect().h)>(tmp->h);
+
+		dest.w = static_cast<Uint16>(tmp->w);
+		dest.h = static_cast<Uint16>(tmp->h);
 
 		switch (x_align) {
-		case TextAlignment::END:
+		case TextAlignment_END:
 			dest.x = textbuf->w - tmp->w;
 			break;
-		case TextAlignment::CENTER:
+		case TextAlignment_CENTER:
 			dest.x = (textbuf->w - tmp->w) / 2;
 			break;
-		case TextAlignment::BEGIN:
+		case TextAlignment_BEGIN:
 			dest.x = 0;
 			break;
 		}
-		SDL_BlitSurface(tmp, nullptr, textbuf, &dest);
+		SDL_BlitSurface(tmp, NULL, textbuf, &dest);
 		dest.y += lineskip;
 		SDL_FreeSurface(tmp);
 	}

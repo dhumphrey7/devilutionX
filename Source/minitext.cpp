@@ -1,17 +1,32 @@
+/**
+ * @file minitext.cpp
+ *
+ * Implementation of scrolling dialog text.
+ */
 #include "all.h"
 
 DEVILUTION_BEGIN_NAMESPACE
 
-int qtexty;
-char *qtextptr;
-int qtextSpd;
-BOOLEAN qtextflag;
-int scrolltexty;
-int sgLastScroll;
-BYTE *pMedTextCels;
-BYTE *pTextBoxCels;
+/** Specify if the quest dialog window is being shown */
+bool qtextflag;
 
-const BYTE mfontframe[127] = {
+namespace {
+
+/** Current y position of text in px */
+int qtexty;
+/** Pointer to the current text being displayed */
+const char *qtextptr;
+/** Vertical speed of the scrolling text in ms/px */
+int qtextSpd;
+/** Time of last rendering of the text */
+Uint32 sgLastScroll;
+/** Graphics for the medium size font */
+Uint8 *pMedTextCels;
+/** Graphics for the window border */
+Uint8 *pTextBoxCels;
+
+/** Maps from font index to medtexts.cel frame number. */
+const Uint8 mfontframe[128] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -24,9 +39,14 @@ const BYTE mfontframe[127] = {
 	26, 42, 0, 43, 0, 0, 0, 1, 2, 3,
 	4, 5, 6, 7, 8, 9, 10, 11, 12, 13,
 	14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
-	24, 25, 26, 48, 0, 49, 0
+	24, 25, 26, 48, 0, 49, 0, 0
 };
-const BYTE mfontkern[56] = {
+/**
+ * Maps from medtexts.cel frame number to character width. Note, the
+ * character width may be distinct from the frame width, which is 22 for every
+ * medtexts.cel frame.
+ */
+const Uint8 mfontkern[56] = {
 	5, 15, 10, 13, 14, 10, 9, 13, 11, 5,
 	5, 11, 10, 16, 13, 16, 10, 15, 12, 10,
 	14, 17, 17, 22, 17, 16, 11, 5, 11, 11,
@@ -35,138 +55,209 @@ const BYTE mfontkern[56] = {
 	5, 5, 5, 5, 11, 12
 };
 
-/* data */
+/** Pixels for a line of text and the empty space under it. */
+const int lineHeight = 38;
 
 /**
- * Positive numbers will delay scrolling 1 out of n frames, negative numbers will scroll 1+(-n) pixels.
+ * @brief Build a single line of text from the given text stream
+ * @param text The original text
+ * @param line The buffer to insert the line in to
+ * @return Indicate that the end of the text was reached
  */
-int qscroll_spd_tbl[9] = { 2, 4, 6, 8, 0, -1, -2, -3, -4 };
-
-void FreeQuestText()
+bool BuildLine(const char *text, char line[128])
 {
-	MemFreeDbg(pMedTextCels);
-	MemFreeDbg(pTextBoxCels);
-}
+	int lineWidth = 0;
+	int l = 0;
 
-void InitQuestText()
-{
-	pMedTextCels = LoadFileInMem("Data\\MedTextS.CEL", NULL);
-	pTextBoxCels = LoadFileInMem("Data\\TextBox.CEL", NULL);
-	qtextflag = FALSE;
-}
-
-void InitQTextMsg(int m)
-{
-	if (alltext[m].scrlltxt) {
-		questlog = FALSE;
-		qtextptr = alltext[m].txtstr;
-		qtextflag = TRUE;
-		qtexty = 500;
-		sgLastScroll = qscroll_spd_tbl[alltext[m].txtspd - 1];
-		if (sgLastScroll <= 0)
-			scrolltexty = 50 / -(sgLastScroll - 1);
-		else
-			scrolltexty = ((sgLastScroll + 1) * 50) / sgLastScroll;
-		qtextSpd = SDL_GetTicks();
+	while (*text != '\n' && *text != '|' && lineWidth < 543) {
+		Uint8 c = gbFontTransTbl[(Uint8)*text];
+		text++;
+		if (c != '\0') {
+			line[l] = c;
+			lineWidth += mfontkern[mfontframe[c]] + 2;
+		} else {
+			l--;
+		}
+		l++;
 	}
-	PlaySFX(alltext[m].sfxnr);
+	line[l] = '\0';
+	if (*text == '|') {
+		line[l] = '\0';
+		return true;
+	}
+
+	if (*text != '\n') {
+		while (line[l] != ' ' && l > 0) {
+			line[l] = '\0';
+			l--;
+		}
+	}
+
+	return false;
 }
 
-void DrawQTextBack()
+/**
+ * @brief Calculate the number of line required by the given text
+ * @return Number of lines
+ */
+int GetLinesInText(const char *text)
 {
-	CelDraw(PANEL_X + 24, 487, pTextBoxCels, 1, 591);
-	trans_rect(PANEL_LEFT + 27, 28, 585, 297);
-}
+	char line[128];
+	int lines = 0;
 
-void PrintQTextChr(int sx, int sy, BYTE *pCelBuff, int nCel)
-{
-	BYTE *pStart, *pEnd;
-
-	/// ASSERT: assert(gpBuffer);
-	pStart = gpBufStart;
-	gpBufStart = &gpBuffer[BUFFER_WIDTH * (49 + SCREEN_Y)];
-	pEnd = gpBufEnd;
-	gpBufEnd = &gpBuffer[BUFFER_WIDTH * (309 + SCREEN_Y)];
-	CelDraw(sx, sy, pCelBuff, nCel, 22);
-
-	gpBufStart = pStart;
-	gpBufEnd = pEnd;
-}
-
-void DrawQText()
-{
-	int i, l, w, tx, ty;
-	BYTE c;
-	char *p, *pnl, *s;
-	char tempstr[128];
-	BOOL doneflag;
-	DWORD currTime;
-
-	DrawQTextBack();
-
-	p = qtextptr;
-	pnl = NULL;
-	tx = 48 + PANEL_X;
-	ty = qtexty;
-
-	doneflag = FALSE;
+	bool doneflag = false;
 	while (!doneflag) {
-		w = 0;
-		s = p;
-		l = 0;
-		while (*s != '\n' && *s != '|' && w < 543) {
-			c = gbFontTransTbl[(BYTE)*s];
-			s++;
-			if (c != '\0') {
-				tempstr[l] = c;
-				w += mfontkern[mfontframe[c]] + 2;
-			} else {
-				l--;
+		doneflag = BuildLine(text, line);
+		text += strlen(line);
+		if (*text == '\n')
+			text++;
+		lines++;
+	}
+
+	return lines;
+}
+
+/**
+ * @brief Calculate the speed the current text should scroll to match the given audio
+ * @param nSFX The index of the sound in the sgSFX table
+ * @return ms/px
+ */
+int CalcTextSpeed(int nSFX)
+{
+	Uint32 SfxFrames, TextHeight;
+
+	SfxFrames = GetSFXLength(nSFX);
+	assert(SfxFrames != 0);
+
+	TextHeight = lineHeight * GetLinesInText(qtextptr);
+	TextHeight += lineHeight * 5; // adjust so when speaker is done two line are left
+
+	return SfxFrames / TextHeight;
+}
+
+/**
+ * @brief Print a character
+ * @param sx Back buffer coordinate
+ * @param sy Back buffer coordinate
+ * @param pCelBuff Cel data
+ * @param nCel CEL frame number
+ */
+void PrintQTextChr(int sx, int sy, Uint8 *pCelBuff, int nCel)
+{
+	CelOutputBuffer buf = GlobalBackBuffer();
+	const int start_y = 49 + SCREEN_Y + UI_OFFSET_Y;
+	buf = buf.subregion(0, start_y, buf.line_width, 309 + SCREEN_Y + UI_OFFSET_Y);
+	CelDrawTo(buf, sx, sy - start_y, pCelBuff, nCel, 22);
+}
+
+/**
+ * @brief Draw the current text in the quest dialog window
+ * @return the start of the text currently being rendered
+ */
+void ScrollQTextContent(const char *pnl)
+{
+	for (Uint32 currTime = SDL_GetTicks(); sgLastScroll + qtextSpd < currTime; sgLastScroll += qtextSpd) {
+		qtexty--;
+		if (qtexty <= 49 + SCREEN_Y + UI_OFFSET_Y) {
+			qtexty += 38;
+			qtextptr = pnl;
+			if (*pnl == '|') {
+				qtextflag = false;
 			}
-			l++;
+			break;
 		}
-		tempstr[l] = '\0';
-		if (*s == '|') {
-			tempstr[l] = '\0';
-			doneflag = TRUE;
-		} else if (*s != '\n') {
-			while (tempstr[l] != ' ' && l > 0) {
-				tempstr[l] = '\0';
-				l--;
-			}
-		}
-		for (i = 0; tempstr[i]; i++) {
-			p++;
-			c = mfontframe[gbFontTransTbl[(BYTE)tempstr[i]]];
-			if (*p == '\n') {
-				p++;
+	}
+}
+
+/**
+ * @brief Draw the current text in the quest dialog window
+ */
+static void DrawQTextContent(CelOutputBuffer out)
+{
+	// TODO: Draw to the given `out` buffer.
+	const char *text, *pnl;
+	char line[128];
+
+	text = qtextptr;
+	pnl = nullptr;
+	int tx = 48 + PANEL_X;
+	int ty = qtexty;
+
+	bool doneflag = false;
+	while (!doneflag) {
+		doneflag = BuildLine(text, line);
+		for (int i = 0; line[i]; i++) {
+			text++;
+			Uint8 c = mfontframe[gbFontTransTbl[(Uint8)line[i]]];
+			if (*text == '\n') {
+				text++;
 			}
 			if (c != 0) {
 				PrintQTextChr(tx, ty, pMedTextCels, c);
 			}
 			tx += mfontkern[c] + 2;
 		}
-		if (pnl == NULL) {
-			pnl = p;
+		if (pnl == nullptr) {
+			pnl = text;
 		}
 		tx = 48 + PANEL_X;
-		ty += 38;
-		if (ty > 501) {
-			doneflag = TRUE;
+		ty += lineHeight;
+		if (ty > 341 + SCREEN_Y + UI_OFFSET_Y) {
+			doneflag = true;
 		}
 	}
 
-	for (currTime = SDL_GetTicks(); qtextSpd + scrolltexty < currTime; qtextSpd += scrolltexty) {
-		qtexty--;
-		if (qtexty <= 209) {
-			qtexty += 38;
-			qtextptr = pnl;
-			if (*pnl == '|') {
-				qtextflag = FALSE;
-			}
-			break;
-		}
+	ScrollQTextContent(pnl);
+}
+
+} // namespace
+
+/**
+ * @brief Free the resouces used by the quest dialog window
+ */
+void FreeQuestText()
+{
+	MemFreeDbg(pMedTextCels);
+	MemFreeDbg(pTextBoxCels);
+}
+
+/**
+ * @brief Load the resouces used by the quest dialog window, and initialize it's state
+ */
+void InitQuestText()
+{
+	pMedTextCels = LoadFileInMem("Data\\MedTextS.CEL", nullptr);
+	pTextBoxCels = LoadFileInMem("Data\\TextBox.CEL", nullptr);
+	qtextflag = false;
+}
+
+/**
+ * @brief Start the given naration
+ * @param m Index of narration from the alltext table
+ */
+void InitQTextMsg(int m)
+{
+	if (alltext[m].scrlltxt) {
+		questlog = false;
+		qtextptr = alltext[m].txtstr;
+		qtextflag = true;
+		qtexty = 340 + SCREEN_Y + UI_OFFSET_Y;
+		qtextSpd = CalcTextSpeed(alltext[m].sfxnr);
+		sgLastScroll = SDL_GetTicks();
 	}
+	PlaySFX(alltext[m].sfxnr);
+}
+
+void DrawQTextBack(CelOutputBuffer out)
+{
+	CelDrawTo(out, PANEL_X + 24, SCREEN_Y + 327 + UI_OFFSET_Y, pTextBoxCels, 1, 591);
+	DrawHalfTransparentRectTo(out, PANEL_X + 27, SCREEN_Y + UI_OFFSET_Y + 28, 585, 297);
+}
+
+void DrawQText(CelOutputBuffer out)
+{
+	DrawQTextBack(out);
+	DrawQTextContent(out);
 }
 
 DEVILUTION_END_NAMESPACE

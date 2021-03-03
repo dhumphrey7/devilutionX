@@ -19,6 +19,8 @@
 #define SDL_InvalidParamError(param) SDL_SetError("Parameter '%s' is invalid", (param))
 #define SDL_floor floor
 
+#define SDL_MAX_UINT32 ((Uint32)0xFFFFFFFFu)
+
 //== Events handling
 
 #define SDL_threadID Uint32
@@ -48,6 +50,7 @@
 // For now we only process ASCII input when using SDL1.
 #define SDL_TEXTINPUTEVENT_TEXT_SIZE 2
 
+#define SDL_JoystickID Sint32
 #define SDL_JoystickNameForIndex SDL_JoystickName
 
 inline void SDL_Log(const char *fmt, ...)
@@ -59,20 +62,16 @@ inline void SDL_Log(const char *fmt, ...)
 	puts("");
 }
 
-static SDL_bool SDLBackport_IsTextInputActive = SDL_FALSE;
-
-inline SDL_bool SDL_IsTextInputActive()
-{
-	return SDLBackport_IsTextInputActive;
-}
-
 inline void SDL_StartTextInput()
 {
-	SDLBackport_IsTextInputActive = SDL_TRUE;
 }
+
 inline void SDL_StopTextInput()
 {
-	SDLBackport_IsTextInputActive = SDL_FALSE;
+}
+
+inline void SDL_SetTextInputRect(const SDL_Rect *r)
+{
 }
 
 //== Graphics helpers
@@ -266,7 +265,7 @@ inline void SDLBackport_PixelformatToMask(int pixelformat, Uint32 *flags, Uint32
  */
 inline bool SDLBackport_PixelFormatFormatEq(const SDL_PixelFormat *a, const SDL_PixelFormat *b)
 {
-	return a->BitsPerPixel == b->BitsPerPixel && (a->palette != nullptr) == (b->palette != nullptr)
+	return a->BitsPerPixel == b->BitsPerPixel && (a->palette != NULL) == (b->palette != NULL)
 	    && a->Rmask == b->Rmask && a->Gmask == b->Gmask && a->Bmask == b->Bmask;
 }
 
@@ -275,7 +274,7 @@ inline bool SDLBackport_PixelFormatFormatEq(const SDL_PixelFormat *a, const SDL_
  */
 inline bool SDLBackport_IsPixelFormatIndexed(const SDL_PixelFormat *pf)
 {
-	return pf->BitsPerPixel == 8 && pf->palette != nullptr;
+	return pf->BitsPerPixel == 8 && pf->palette != NULL;
 }
 
 //= Surface creation
@@ -760,6 +759,10 @@ inline char *SDL_GetBasePath()
 		}
 	}
 #endif
+#if defined(__3DS__)
+	retval = SDL_strdup("file:sdmc:/3ds/devilutionx/");
+	return retval;
+#endif
 
 	/* is a Linux-style /proc filesystem available? */
 	if (!retval && (access("/proc", F_OK) == 0)) {
@@ -825,6 +828,11 @@ inline char *SDL_GetPrefPath(const char *org, const char *app)
 	char *retval = NULL;
 	char *ptr = NULL;
 	size_t len = 0;
+
+#if defined(__3DS__)
+	retval = SDL_strdup("sdmc:/3ds/devilutionx/");
+	return retval;
+#endif
 
 	if (!app) {
 		SDL_InvalidParamError("app");

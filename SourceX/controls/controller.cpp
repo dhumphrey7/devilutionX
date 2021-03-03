@@ -8,7 +8,7 @@ namespace dvl {
 
 ControllerButtonEvent ToControllerButtonEvent(const SDL_Event &event)
 {
-	ControllerButtonEvent result{ ControllerButton::NONE, false };
+	ControllerButtonEvent result { ControllerButton_NONE, false };
 	switch (event.type) {
 #ifndef USE_SDL1
 	case SDL_CONTROLLERBUTTONUP:
@@ -23,39 +23,61 @@ ControllerButtonEvent ToControllerButtonEvent(const SDL_Event &event)
 
 #if HAS_KBCTRL == 1
 	result.button = KbCtrlToControllerButton(event);
-	if (result.button != ControllerButton::NONE)
+	if (result.button != ControllerButton_NONE)
 		return result;
 #endif
 
 #ifndef USE_SDL1
-	result.button = GameControllerToControllerButton(event);
-	if (result.button != ControllerButton::NONE)
-		return result;
+	GameController *const controller = GameController::Get(event);
+	if (controller != NULL) {
+		result.button = controller->ToControllerButton(event);
+		if (result.button != ControllerButton_NONE)
+			return result;
+	}
 #endif
 
-	result.button = JoyButtonToControllerButton(event);
+	const Joystick *joystick = Joystick::Get(event);
+	if (joystick != NULL)
+		result.button = joystick->ToControllerButton(event);
 
 	return result;
 }
 
 bool IsControllerButtonPressed(ControllerButton button)
 {
-	bool result = false;
 #ifndef USE_SDL1
-	result = result || IsGameControllerButtonPressed(button);
+	if (GameController::IsPressedOnAnyController(button))
+		return true;
 #endif
 #if HAS_KBCTRL == 1
-	result = result || IsKbCtrlButtonPressed(button);
+	if (IsKbCtrlButtonPressed(button))
+		return true;
 #endif
-	result = result || IsJoystickButtonPressed(button);
-	return result;
+	return Joystick::IsPressedOnAnyJoystick(button);
 }
 
-void InitController()
+bool HandleControllerAddedOrRemovedEvent(const SDL_Event &event)
 {
-	InitJoystick();
 #ifndef USE_SDL1
-	InitGameController();
+	switch (event.type) {
+	case SDL_CONTROLLERDEVICEADDED:
+		GameController::Add(event.cdevice.which);
+		break;
+	case SDL_CONTROLLERDEVICEREMOVED:
+		GameController::Remove(event.cdevice.which);
+		break;
+	case SDL_JOYDEVICEADDED:
+		Joystick::Add(event.jdevice.which);
+		break;
+	case SDL_JOYDEVICEREMOVED:
+		Joystick::Remove(event.jdevice.which);
+		break;
+	default:
+		return false;
+	}
+	return true;
+#else
+	return false;
 #endif
 }
 

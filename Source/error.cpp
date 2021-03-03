@@ -1,3 +1,8 @@
+/**
+ * @file error.cpp
+ *
+ * Implementation of in-game message functions.
+ */
 #include "all.h"
 
 DEVILUTION_BEGIN_NAMESPACE
@@ -7,7 +12,8 @@ DWORD msgdelay;
 char msgflag;
 char msgcnt;
 
-char *MsgStrings[44] = {
+/** Maps from error_id to error message. */
+const char *const MsgStrings[] = {
 	"",
 	"No automap available in town",
 	"No multiplayer functions in demo",
@@ -51,7 +57,18 @@ char *MsgStrings[44] = {
 	"You must be at least level 8 to use this.",
 	"You must be at least level 13 to use this.",
 	"You must be at least level 17 to use this.",
-	"Arcane knowledge gained!"
+	"Arcane knowledge gained!",
+	"That which does not kill you...",
+	"Knowledge is power.",
+	"Give and you shall receive.",
+	"Some experience is gained by touch.",
+	"There's no place like home.",
+	"Spirtual energy is restored.",
+	"You feel more agile.",
+	"You feel stronger.",
+	"You feel wiser.",
+	"You feel refreshed.",
+	"That which can break will.",
 };
 
 void InitDiabloMsg(char e)
@@ -66,7 +83,7 @@ void InitDiabloMsg(char e)
 			return;
 	}
 
-	msgtable[msgcnt] = e;
+	msgtable[msgcnt] = e; // BUGFIX: missing out-of-bounds check (fixed)
 	msgcnt++;
 
 	msgflag = msgtable[0];
@@ -84,32 +101,32 @@ void ClrDiabloMsg()
 	msgcnt = 0;
 }
 
-void DrawDiabloMsg()
+void DrawDiabloMsg(CelOutputBuffer out)
 {
 	int i, len, width, sx, sy;
 	BYTE c;
 
-	CelDraw(PANEL_X + 101, DIALOG_Y, pSTextSlidCels, 1, 12);
-	CelDraw(PANEL_X + 527, DIALOG_Y, pSTextSlidCels, 4, 12);
-	CelDraw(PANEL_X + 101, DIALOG_Y + 48, pSTextSlidCels, 2, 12);
-	CelDraw(PANEL_X + 527, DIALOG_Y + 48, pSTextSlidCels, 3, 12);
+	CelDrawTo(out, PANEL_X + 101, DIALOG_Y, pSTextSlidCels, 1, 12);
+	CelDrawTo(out, PANEL_X + 527, DIALOG_Y, pSTextSlidCels, 4, 12);
+	CelDrawTo(out, PANEL_X + 101, DIALOG_Y + 48, pSTextSlidCels, 2, 12);
+	CelDrawTo(out, PANEL_X + 527, DIALOG_Y + 48, pSTextSlidCels, 3, 12);
 
 	sx = PANEL_X + 109;
 	for (i = 0; i < 35; i++) {
-		CelDraw(sx, DIALOG_Y, pSTextSlidCels, 5, 12);
-		CelDraw(sx, DIALOG_Y + 48, pSTextSlidCels, 7, 12);
+		CelDrawTo(out, sx, DIALOG_Y, pSTextSlidCels, 5, 12);
+		CelDrawTo(out, sx, DIALOG_Y + 48, pSTextSlidCels, 7, 12);
 		sx += 12;
 	}
 	sy = DIALOG_Y + 12;
 	for (i = 0; i < 3; i++) {
-		CelDraw(PANEL_X + 101, sy, pSTextSlidCels, 6, 12);
-		CelDraw(PANEL_X + 527, sy, pSTextSlidCels, 8, 12);
+		CelDrawTo(out, PANEL_X + 101, sy, pSTextSlidCels, 6, 12);
+		CelDrawTo(out, PANEL_X + 527, sy, pSTextSlidCels, 8, 12);
 		sy += 12;
 	}
 
-	/// ASSERT: assert(gpBuffer);
+	assert(gpBuffer);
 
-	trans_rect(PANEL_LEFT + 104, DIALOG_TOP - 8, 432, 54);
+	DrawHalfTransparentRectTo(out, PANEL_X + 104, DIALOG_Y - 8, 432, 54);
 
 	strcpy(tempstr, MsgStrings[msgflag]);
 	sx = PANEL_X + 101;
@@ -128,7 +145,7 @@ void DrawDiabloMsg()
 	for (i = 0; i < len; i++) {
 		c = fontframe[gbFontTransTbl[(BYTE)tempstr[i]]];
 		if (c != '\0') {
-			PrintChar(sx, sy, c, COL_GOLD);
+			PrintChar(out, sx, sy, c, COL_GOLD);
 		}
 		sx += fontkern[c] + 1;
 	}

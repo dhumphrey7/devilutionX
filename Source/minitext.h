@@ -1,29 +1,37 @@
-//HEADER_GOES_HERE
+/**
+ * @file minitext.h
+ *
+ * Interface of scrolling dialog text.
+ */
 #ifndef __MINITEXT_H__
 #define __MINITEXT_H__
 
-extern int qtexty;
-extern char *qtextptr;
-extern int qtextSpd;
-extern BOOLEAN qtextflag;
-extern int scrolltexty;
-extern BYTE *pMedTextCels;
-extern BYTE *pTextBoxCels;
+DEVILUTION_BEGIN_NAMESPACE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+extern bool qtextflag;
 
 void FreeQuestText();
 void InitQuestText();
 void InitQTextMsg(int m);
-void DrawQTextBack();
-void PrintQTextChr(int sx, int sy, BYTE *pCelBuff, int nCel);
-void DrawQText();
 
-/* rdata */
+/**
+ * @brief Draw the quest dialog window decoration and background.
+ */
+void DrawQTextBack(CelOutputBuffer out);
 
-extern const BYTE mfontframe[127];
-extern const BYTE mfontkern[56];
+/**
+ * @brief Draw the quest dialog window text.
+ */
+void DrawQText(CelOutputBuffer out);
 
-/* data */
+#ifdef __cplusplus
+}
+#endif
 
-extern int qscroll_spd_tbl[9];
+DEVILUTION_END_NAMESPACE
 
 #endif /* __MINITEXT_H__ */

@@ -1,37 +1,40 @@
-//HEADER_GOES_HERE
+/**
+ * @file effects.h
+ *
+ * Interface of functions for loading and playing sounds.
+ */
 #ifndef __EFFECTS_H__
 #define __EFFECTS_H__
 
+DEVILUTION_BEGIN_NAMESPACE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern int sfxdelay;
 extern int sfxdnum;
-extern HANDLE sfx_stream;
-extern TSFX *sfx_data_cur;
 
 BOOL effect_is_playing(int nSFX);
-void sfx_stop();
+void stream_stop();
 void InitMonsterSND(int monst);
-void FreeEffects();
-void PlayEffect(int i, int mode);
-BOOL calc_snd_position(int x, int y, int *plVolume, int *plPan);
-void PlaySFX(int psfx);
-void PlaySFX_priv(TSFX *pSFX, BOOL loc, int x, int y);
-void stream_play(TSFX *pSFX, int lVolume, int lPan);
-int RndSFX(int psfx);
-void PlaySfxLoc(int psfx, int x, int y);
 void FreeMonsterSnd();
+BOOL calc_snd_position(int x, int y, int *plVolume, int *plPan);
+void PlayEffect(int i, int mode);
+void PlaySFX(int psfx);
+void PlaySfxLoc(int psfx, int x, int y);
 void sound_stop();
 void sound_update();
-void effects_update();
 void effects_cleanup_sfx();
-void stream_update();
-void priv_sound_init(BYTE bLoadMask);
 void sound_init();
-void effects_play_sound(char *snd_file);
+void ui_sound_init();
+void effects_play_sound(const char *snd_file);
+int GetSFXLength(int nSFX);
 
-/* rdata */
+#ifdef __cplusplus
+}
+#endif
 
-extern const char MonstSndChar[];
-
-/* data */
+DEVILUTION_END_NAMESPACE
 
 #endif /* __EFFECTS_H__ */

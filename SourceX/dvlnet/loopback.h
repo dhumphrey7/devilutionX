@@ -14,9 +14,14 @@ class loopback : public abstract_net {
 private:
 	std::queue<buffer_t> message_queue;
 	buffer_t message_last;
-	const int plr_single = 0;
+	int plr_single;
 
 public:
+	loopback()
+	{
+		plr_single = 0;
+	};
+
 	virtual int create(std::string addrstr, std::string passwd);
 	virtual int join(std::string addrstr, std::string passwd);
 	virtual bool SNetReceiveMessage(int *sender, char **data, int *size);
@@ -32,7 +37,7 @@ public:
 	virtual bool SNetLeaveGame(int type);
 	virtual bool SNetDropPlayer(int playerid, DWORD flags);
 	virtual bool SNetGetOwnerTurnsWaiting(DWORD *turns);
-	virtual bool SNetGetTurnsInTransit(int *turns);
+	virtual bool SNetGetTurnsInTransit(DWORD *turns);
 	virtual void setup_gameinfo(buffer_t info);
 };
 

@@ -1,24 +1,45 @@
-//HEADER_GOES_HERE
+/**
+ * @file lighting.h
+ *
+ * Interface of light and vision.
+ */
 #ifndef __LIGHTING_H__
 #define __LIGHTING_H__
+
+DEVILUTION_BEGIN_NAMESPACE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+typedef struct LightListStruct {
+	int _lx;
+	int _ly;
+	int _lradius;
+	int _lid;
+	int _ldel;
+	int _lunflag;
+	int field_18;
+	int _lunx;
+	int _luny;
+	int _lunr;
+	int _xoff;
+	int _yoff;
+	int _lflags;
+} LightListStruct;
 
 extern LightListStruct VisionList[MAXVISION];
 extern BYTE lightactive[MAXLIGHTS];
 extern LightListStruct LightList[MAXLIGHTS];
 extern int numlights;
-extern BYTE lightradius[16][128];
-extern BOOL dovision;
 extern int numvision;
 extern char lightmax;
 extern BOOL dolighting;
-extern BYTE lightblock[64][16][16];
 extern int visionid;
 extern BYTE *pLightTbl;
 extern BOOL lightflag;
 
-void RotateRadius(int *x, int *y, int *dx, int *dy, int *lx, int *ly, int *bx, int *by);
 void DoLighting(int nXPos, int nYPos, int nRadius, int Lnum);
-void DoUnLight(int nXPos, int nYPos, int nRadius);
 void DoUnVision(int nXPos, int nYPos, int nRadius);
 void DoVision(int nXPos, int nYPos, int nRadius, BOOL doautomap, BOOL visible);
 void FreeLightTable();
@@ -46,10 +67,13 @@ void lighting_color_cycling();
 
 /* rdata */
 
-extern char CrawlTable[2749];
-extern char *pCrawlTable[19];
-extern BYTE vCrawlTable[23][30];
-extern BYTE byte_49463C[18][18];
-extern BYTE RadiusAdj[23];
+extern const char CrawlTable[2749];
+extern const BYTE vCrawlTable[23][30];
+
+#ifdef __cplusplus
+}
+#endif
+
+DEVILUTION_END_NAMESPACE
 
 #endif /* __LIGHTING_H__ */

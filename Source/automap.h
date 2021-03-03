@@ -1,10 +1,20 @@
-//HEADER_GOES_HERE
+/**
+ * @file automap.h
+ *
+ * Interface of the in-game map overlay.
+ */
 #ifndef __AUTOMAP_H__
 #define __AUTOMAP_H__
 
-extern WORD automaptype[512];
+#include "engine.h"
+
+DEVILUTION_BEGIN_NAMESPACE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 extern BOOL automapflag;
-extern char AmShiftTab[31];
 extern BOOLEAN automapview[DMAXX][DMAXY];
 extern int AutoMapScale;
 extern int AutoMapXOfs;
@@ -24,12 +34,19 @@ void AutomapLeft();
 void AutomapRight();
 void AutomapZoomIn();
 void AutomapZoomOut();
-void DrawAutomap();
-void DrawAutomapTile(int screen_x, int screen_y, WORD automap_type);
-void DrawAutomapPlr();
-WORD GetAutomapType(int x, int y, BOOL view);
-void DrawAutomapText();
+
+/**
+ * @brief Renders the automap to the given buffer.
+ */
+void DrawAutomap(CelOutputBuffer out);
+
 void SetAutomapView(int x, int y);
 void AutomapZoomReset();
+
+#ifdef __cplusplus
+}
+#endif
+
+DEVILUTION_END_NAMESPACE
 
 #endif /* __AUTOMAP_H__ */

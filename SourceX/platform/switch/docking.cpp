@@ -17,7 +17,7 @@ void HandleDocking()
 		case AppletOperationMode_Handheld:
 			docked = 0;
 			break;
-		case AppletOperationMode_Docked:
+		case AppletOperationMode_Console:
 			docked = 1;
 			break;
 		default:
@@ -42,7 +42,7 @@ void HandleDocking()
 			SDL_RenderClear(renderer);
 			SDL_RenderPresent(renderer);
 		}
-		SDL_SetWindowSize(window, display_width, display_height);
+		SDL_SetWindowSize(ghMainWnd, display_width, display_height);
 	}
 }
 

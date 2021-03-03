@@ -1,79 +1,100 @@
+/**
+ * @file diablo.h
+ *
+ * Interface of the main game initialization functions.
+ */
 #ifndef __DIABLO_H__
 #define __DIABLO_H__
 
-extern HWND ghMainWnd;
-extern int glMid1Seed[NUMLEVELS];
-extern int glMid2Seed[NUMLEVELS];
-extern int gnLevelTypeTbl[NUMLEVELS];
-extern int MouseY;
-extern int MouseX;
-extern BOOL gbGameLoopStartup;
+DEVILUTION_BEGIN_NAMESPACE
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef DEFAULT_WIDTH
+#define DEFAULT_WIDTH 640
+#endif
+#ifndef DEFAULT_HEIGHT
+#define DEFAULT_HEIGHT 480
+#endif
+
+typedef struct Options {
+	Sint32 nSoundVolume; // Movie and SFX volume
+	Sint32 nMusicVolume; // Music volume
+	bool bWalkingSound;  // Player emits sound when walking
+
+	Sint32 nWidth;             // Render width
+	Sint32 nHeight;            // Render height
+	bool bFullscreen;          // Run in fullscreen or windowed mode
+	bool bUpscale;             // Scale the image after rendering
+	bool bFitToScreen;         // Expand the aspect ratio to match the screen
+	char szScaleQuality[2];    // See SDL_HINT_RENDER_SCALE_QUALITY
+	bool bIntegerScaling;      // Only scale by values divisible by the width and height
+	bool bVSync;               // Enable vsync on the output
+	bool bBlendedTransparancy; // Use blended transparency rather than stippled
+	Sint32 nGammaCorrection;   // Gamma correction level
+	bool bColorCycling;        // Enable color cycling animations
+
+	Sint32 nTickRate; // Game play ticks per secound
+	bool bJogInTown;  // Enable double walk speed when in town
+	bool bGrabInput;  // Do not let the mouse leave the application window
+	bool bTheoQuest;  // Enable the Theo quest
+	bool bCowQuest;   // Enable the cow quest
+
+	char szBindAddress[129]; // Optionally bind to a specific network interface
+} Options;
+
+extern SDL_Window *ghMainWnd;
 extern DWORD glSeedTbl[NUMLEVELS];
+extern int gnLevelTypeTbl[NUMLEVELS];
+extern int MouseX;
+extern int MouseY;
 extern BOOL gbRunGame;
-extern int glMid3Seed[NUMLEVELS];
 extern BOOL gbRunGameResult;
 extern BOOL zoomflag;
 extern BOOL gbProcessPlayers;
-extern int glEndSeed[NUMLEVELS];
 extern BOOL gbLoadGame;
-extern HINSTANCE ghInst;
-extern int DebugMonsters[10];
 extern BOOLEAN cineflag;
 extern int force_redraw;
-extern BOOL visiondebug;
-extern BOOL scrollflag; /* unused */
+/* These are defined in fonts.h */
+extern BOOL was_fonts_init;
+extern void FontsCleanup();
 extern BOOL light4flag;
-extern BOOL leveldebug;
-extern BOOL monstdebug;
-extern BOOL trigdebug; /* unused */
-extern int setseed;
-extern int debugmonsttypes;
 extern int PauseMode;
+extern bool gbTheoQuest;
+extern bool gbCowQuest;
+extern bool gbNestArt;
+extern bool gbBard;
+extern bool gbBarbarian;
 extern char sgbMouseDown;
-extern int color_cycle_timer;
+extern int gnTickRate;
+extern WORD gnTickDelay;
+extern Options sgOptions;
 
 void FreeGameMem();
 BOOL StartGame(BOOL bNewGame, BOOL bSinglePlayer);
-void run_game_loop(unsigned int uMsg);
-void start_game(unsigned int uMsg);
-void free_game();
+void diablo_quit(int exitStatus);
 int DiabloMain(int argc, char **argv);
-void diablo_parse_flags(int argc, char **argv);
-void diablo_init_screen();
-void diablo_reload_process(HINSTANCE hInstance);
-BOOL PressEscKey();
-LRESULT DisableInputWndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-LRESULT GM_Game(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-BOOL LeftMouseDown(int wParam);
-BOOL LeftMouseCmd(BOOL bShift);
 BOOL TryIconCurs();
-void LeftMouseUp();
-void RightMouseDown();
-void j_gmenu_on_mouse_move(LPARAM lParam);
-BOOL PressSysKey(int wParam);
-void diablo_hotkey_msg(DWORD dwMsg);
-void ReleaseKey(int vkey);
-void PressKey(int vkey);
 void diablo_pause_game();
-void PressChar(int vkey);
-void LoadLvlGFX();
-void LoadAllGFX();
-void CreateLevel(int lvldir);
+BOOL PressEscKey();
+void DisableInputWndProc(UINT uMsg, WPARAM wParam, LPARAM lParam);
+void GM_Game(UINT uMsg, WPARAM wParam, LPARAM lParam);
 void LoadGameLevel(BOOL firstflag, int lvldir);
 void game_loop(BOOL bStartup);
-void game_logic();
-void timeout_cursor(BOOL bTimeout);
 void diablo_color_cyc_logic();
-
-/* data */
 
 /* rdata */
 
-extern BOOL fullscreen;
-extern int showintrodebug;
+extern bool gbForceWindowed;
+extern BOOL leveldebug;
 #ifdef _DEBUG
+extern BOOL monstdebug;
+extern int debugmonsttypes;
+extern int DebugMonsters[10];
+extern BOOL visiondebug;
 extern int questdebug;
-extern int debug_mode_key_s;
 extern int debug_mode_key_w;
 extern int debug_mode_key_inverted_v;
 extern int debug_mode_dollar_sign;
@@ -82,14 +103,13 @@ extern int debug_mode_key_i;
 extern int dbgplr;
 extern int dbgqst;
 extern int dbgmon;
-extern int arrowdebug;
 #endif
-extern int frameflag;
-extern int frameend;
-extern int framerate;
-extern int framestart;
 extern BOOL FriendlyMode;
-extern char *spszMsgTbl[4];
-extern char *spszMsgHotKeyTbl[4];
+
+#ifdef __cplusplus
+}
+#endif
+
+DEVILUTION_END_NAMESPACE
 
 #endif /* __DIABLO_H__ */

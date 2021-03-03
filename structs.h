@@ -1,13 +1,10 @@
-//////////////////////////////////////////////////
-// control
-//////////////////////////////////////////////////
+/**
+ * @file structs.h
+ *
+ * Various global structures.
+ */
 
-typedef struct RECT32 {
-	int x;
-	int y;
-	int w;
-	int h;
-} RECT32;
+DEVILUTION_BEGIN_NAMESPACE
 
 //////////////////////////////////////////////////
 // items
@@ -29,7 +26,7 @@ typedef struct PLStruct {
 } PLStruct;
 
 typedef struct UItemStruct {
-	char *UIName;
+	const char *UIName;
 	char UIItemId;
 	char UIMinLvl;
 	char UINumPL;
@@ -61,8 +58,8 @@ typedef struct ItemDataStruct {
 	int iCurs;
 	char itype;
 	char iItemId;
-	char *iName;
-	char *iSName;
+	const char *iName;
+	const char *iSName;
 	char iMinMLvl;
 	int iDurability;
 	int iMinDam;
@@ -98,11 +95,11 @@ typedef struct ItemStruct {
 	int _iy;
 	BOOL _iAnimFlag;
 	unsigned char *_iAnimData; // PSX name -> ItemFrame
-	int _iAnimLen;
-	int _iAnimFrame;
+	int _iAnimLen;             // Number of frames in current animation
+	int _iAnimFrame;           // Current frame of animation.
 	int _iAnimWidth;
 	int _iAnimWidth2; // width 2?
-	BOOL _iDelFlag; // set when item is flagged for deletion, deprecated in 1.02
+	BOOL _iDelFlag;   // set when item is flagged for deletion, deprecated in 1.02
 	char _iSelFlag;
 	BOOL _iPostDraw;
 	BOOL _iIdentified;
@@ -163,6 +160,7 @@ typedef struct ItemStruct {
 	BOOL _iStatFlag;
 	int IDidx;
 	int offs016C; // _oldlight or _iInvalid
+	int _iDamAcFlags;
 } ItemStruct;
 
 //////////////////////////////////////////////////
@@ -179,28 +177,28 @@ typedef struct PlayerStruct {
 	int destParam3;
 	int destParam4;
 	int plrlevel;
-	int WorldX;
-	int WorldY;
-	int _px;
-	int _py;
-	int _ptargx;
-	int _ptargy;
-	int _pownerx;
-	int _pownery;
-	int _poldx;
-	int _poldy;
-	int _pxoff;
-	int _pyoff;
-	int _pxvel;
-	int _pyvel;
-	int _pdir;
-	int _nextdir;
-	int _pgfxnum;
+	int _px;      // Tile X-position of player
+	int _py;      // Tile Y-position of player
+	int _pfutx;   // Future tile X-position of player. Set at start of walking animation
+	int _pfuty;   // Future tile Y-position of player. Set at start of walking animation
+	int _ptargx;  // Target tile X-position for player movment. Set during pathfinding
+	int _ptargy;  // Target tile Y-position for player movment. Set during pathfinding
+	int _pownerx; // Tile X-position of player. Set via network on player input
+	int _pownery; // Tile X-position of player. Set via network on player input
+	int _poldx;   // Most recent X-position in dPlayer.
+	int _poldy;   // Most recent Y-position in dPlayer.
+	int _pxoff;   // Player sprite's pixel X-offset from tile.
+	int _pyoff;   // Player sprite's pixel Y-offset from tile.
+	int _pxvel;   // Pixel X-velocity while walking. Indirectly applied to _pxoff via _pvar6
+	int _pyvel;   // Pixel Y-velocity while walking. Indirectly applied to _pyoff via _pvar7
+	int _pdir;    // Direction faced by player (direction enum)
+	int _nextdir; // Unused
+	int _pgfxnum; // Bitmask indicating what variant of the sprite the player is using. Lower byte define weapon (anim_weapon_id) and higher values define armour (starting with anim_armor_id)
 	unsigned char *_pAnimData;
-	int _pAnimDelay;
-	int _pAnimCnt;
-	int _pAnimLen;
-	int _pAnimFrame;
+	int _pAnimDelay; // Tick length of each frame in the current animation
+	int _pAnimCnt;   // Increases by one each game tick, counting how close we are to _pAnimDelay
+	int _pAnimLen;   // Number of frames in current animation
+	int _pAnimFrame; // Current frame of animation.
 	int _pAnimWidth;
 	int _pAnimWidth2;
 	int _peflag;
@@ -217,9 +215,9 @@ typedef struct PlayerStruct {
 	int _pSBkSpell;
 	char _pSBkSplType;
 	char _pSplLvl[64];
-	uint64_t _pMemSpells;
-	uint64_t _pAblSpells;
-	uint64_t _pScrlSpells;
+	uint64_t _pMemSpells;  // Bitmask of learned spells
+	uint64_t _pAblSpells;  // Bitmask of abilities
+	uint64_t _pScrlSpells; // Bitmask of spells available via scrolls
 	UCHAR _pSpellFlags;
 	int _pSplHotKey[4];
 	char _pSplTHotKey[4];
@@ -227,7 +225,7 @@ typedef struct PlayerStruct {
 	BOOLEAN _pBlockFlag;
 	BOOLEAN _pInvincible;
 	char _pLightRad;
-	BOOLEAN _pLvlChanging;
+	BOOLEAN _pLvlChanging; // True when the player is transitioning between levels
 	char _pName[PLR_NAME_LEN];
 	// plr_class enum value.
 	// TODO: this could very well be `enum plr_class _pClass`
@@ -268,40 +266,40 @@ typedef struct PlayerStruct {
 	char _pLghtResist;
 	int _pGold;
 	BOOL _pInfraFlag;
-	int _pVar1;
-	int _pVar2;
-	int _pVar3;
-	int _pVar4;
-	int _pVar5;
-	int _pVar6;
-	int _pVar7;
-	int _pVar8;
+	int _pVar1; // Used for referring to X-position of player when finishing moving one tile (also used to define target coordinates for spells and ranged attacks)
+	int _pVar2; // Used for referring to Y-position of player when finishing moving one tile (also used to define target coordinates for spells and ranged attacks)
+	int _pVar3; // Player's direction when ending movement. Also used for casting direction of SPL_FIREWALL.
+	int _pVar4; // Used for storing X-position of a tile which should have its BFLAG_PLAYERLR flag removed after walking. When starting to walk the game places the player in the dPlayer array -1 in the Y coordinate, and uses BFLAG_PLAYERLR to check if it should be using -1 to the Y coordinate when rendering the player (also used for storing the level of a spell when the player casts it)
+	int _pVar5; // Used for storing Y-position of a tile which should have its BFLAG_PLAYERLR flag removed after walking. When starting to walk the game places the player in the dPlayer array -1 in the Y coordinate, and uses BFLAG_PLAYERLR to check if it should be using -1 to the Y coordinate when rendering the player (also used for storing the level of a spell when the player casts it)
+	int _pVar6; // Same as _pxoff but contains the value in a higher range
+	int _pVar7; // Same as _pyoff but contains the value in a higher range
+	int _pVar8; // Used for counting how close we are to reaching the next tile when walking (usually counts to 8, which is equal to the walk animation length). Also used for stalling the appearance of the options screen after dying in singleplayer
 	BOOLEAN _pLvlVisited[NUMLEVELS];
 	BOOLEAN _pSLvlVisited[NUMLEVELS]; // only 10 used
 	int _pGFXLoad;
-	unsigned char *_pNAnim[8];
+	unsigned char *_pNAnim[8]; // Stand animations
 	int _pNFrames;
 	int _pNWidth;
-	unsigned char *_pWAnim[8];
+	unsigned char *_pWAnim[8]; // Walk animations
 	int _pWFrames;
 	int _pWWidth;
-	unsigned char *_pAAnim[8];
+	unsigned char *_pAAnim[8]; // Attack animations
 	int _pAFrames;
 	int _pAWidth;
 	int _pAFNum;
-	unsigned char *_pLAnim[8];
-	unsigned char *_pFAnim[8];
-	unsigned char *_pTAnim[8];
+	unsigned char *_pLAnim[8]; // Lightning spell cast animations
+	unsigned char *_pFAnim[8]; // Fire spell cast animations
+	unsigned char *_pTAnim[8]; // Generic spell cast animations
 	int _pSFrames;
 	int _pSWidth;
 	int _pSFNum;
-	unsigned char *_pHAnim[8];
+	unsigned char *_pHAnim[8]; // Getting hit animations
 	int _pHFrames;
 	int _pHWidth;
-	unsigned char *_pDAnim[8];
+	unsigned char *_pDAnim[8]; // Death animations
 	int _pDFrames;
 	int _pDWidth;
-	unsigned char *_pBAnim[8];
+	unsigned char *_pBAnim[8]; // Block animations
 	int _pBFrames;
 	int _pBWidth;
 	ItemStruct InvBody[NUM_INVLOC];
@@ -317,7 +315,7 @@ typedef struct PlayerStruct {
 	int _pIBonusToHit;
 	int _pIBonusAC;
 	int _pIBonusDamMod;
-	uint64_t _pISpells;
+	uint64_t _pISpells; // Bitmask of staff spell
 	int _pIFlags;
 	int _pIGetHit;
 	char _pISplLvlAdd;
@@ -334,10 +332,12 @@ typedef struct PlayerStruct {
 	unsigned char pLvlLoad;
 	unsigned char pBattleNet;
 	BOOLEAN pManaShield;
-	char bReserved[3];
-	short wReserved[8];
+	unsigned char pDungMsgs2;
+	BOOLEAN pOriginalCathedral;
+	WORD wReflections;
 	DWORD pDiabloKillLevel;
-	int dwReserved[7];
+	int pDifficulty;
+	int pDamAcFlags;
 	unsigned char *_pNData;
 	unsigned char *_pWData;
 	unsigned char *_pAData;
@@ -347,7 +347,6 @@ typedef struct PlayerStruct {
 	unsigned char *_pHData;
 	unsigned char *_pDData;
 	unsigned char *_pBData;
-	void *pReserved;
 } PlayerStruct;
 
 //////////////////////////////////////////////////
@@ -355,113 +354,27 @@ typedef struct PlayerStruct {
 //////////////////////////////////////////////////
 
 typedef struct TextDataStruct {
-	char *txtstr;
+	const char *txtstr;
 	int scrlltxt;
-	int txtspd;
+	int txtspd; /* calculated dynamically, 01/23/21 */
 	int sfxnr;
 } TextDataStruct;
-
-//////////////////////////////////////////////////
-// missiles
-//////////////////////////////////////////////////
-
-// TPDEF PTR FCN VOID MIADDPRC
-// TPDEF PTR FCN VOID MIPROC
-
-typedef struct MissileData {
-	unsigned char mName;
-	void(* mAddProc)(int, int, int, int, int, int, char, int, int);
-	void(* mProc)(int);
-	BOOL mDraw;
-	unsigned char mType;
-	unsigned char mResist;
-	unsigned char mFileNum;
-	int mlSFX;
-	int miSFX;
-} MissileData;
-
-typedef struct MisFileData {
-	unsigned char mAnimName;
-	unsigned char mAnimFAmt;
-	char *mName;
-	int mFlags;
-	unsigned char *mAnimData[16];
-	unsigned char mAnimDelay[16];
-	unsigned char mAnimLen[16];
-	int mAnimWidth[16];
-	int mAnimWidth2[16];
-} MisFileData;
-
-typedef struct ChainStruct {
-	int idx;
-	int _mitype;
-	int _mirange;
-} ChainStruct;
-
-typedef struct MissileStruct {
-	int _mitype;
-	int _mix;
-	int _miy;
-	int _mixoff;
-	int _miyoff;
-	int _mixvel;
-	int _miyvel;
-	int _misx;
-	int _misy;
-	int _mitxoff;
-	int _mityoff;
-	int _mimfnum;
-	int _mispllvl;
-	BOOL _miDelFlag;
-	BYTE _miAnimType;
-	int _miAnimFlags;
-	unsigned char *_miAnimData;
-	int _miAnimDelay;
-	int _miAnimLen;
-	int _miAnimWidth;
-	int _miAnimWidth2;
-	int _miAnimCnt;
-	int _miAnimAdd;
-	int _miAnimFrame;
-	BOOL _miDrawFlag;
-	BOOL _miLightFlag;
-	BOOL _miPreFlag;
-	int _miUniqTrans;
-	int _mirange;
-	int _misource;
-	int _micaster;
-	int _midam;
-	BOOL _miHitFlag;
-	int _midist;
-	int _mlid;
-	int _mirnd;
-	int _miVar1;
-	int _miVar2;
-	int _miVar3;
-	int _miVar4;
-	int _miVar5;
-	int _miVar6;
-	int _miVar7;
-	int _miVar8;
-} MissileStruct;
 
 //////////////////////////////////////////////////
 // effects/sound
 //////////////////////////////////////////////////
 
 typedef struct TSnd {
-	char *sound_path;
+	const char *sound_path;
 	SoundSample *DSB;
 	int start_tc;
 } TSnd;
 
-#pragma pack(push, 1)
 typedef struct TSFX {
 	unsigned char bFlags;
-	char *pszName;
+	const char *pszName;
 	TSnd *pSnd;
 } TSFX;
-#pragma pack(pop)
 
 //////////////////////////////////////////////////
 // monster
@@ -477,15 +390,15 @@ typedef struct AnimStruct {
 typedef struct MonsterData {
 	int width;
 	int mImage;
-	char *GraphicType;
+	const char *GraphicType;
 	BOOL has_special;
-	char *sndfile;
+	const char *sndfile;
 	BOOL snd_special;
 	BOOL has_trans;
-	char *TransFile;
+	const char *TransFile;
 	int Frames[6];
 	int Rate[6];
-	char *mName;
+	const char *mName;
 	char mMinDLvl;
 	char mMaxDLvl;
 	char mLevel;
@@ -494,11 +407,11 @@ typedef struct MonsterData {
 	char mAi;
 	int mFlags;
 	unsigned char mInt;
-	unsigned char mHit; // BUGFIX: Some monsters overflow this value on high difficulty
+	unsigned short mHit; // BUGFIX: Some monsters overflow this value on high difficultys (fixed)
 	unsigned char mAFNum;
 	unsigned char mMinDamage;
 	unsigned char mMaxDamage;
-	unsigned char mHit2; // BUGFIX: Some monsters overflow this value on high difficulty
+	unsigned short mHit2; // BUGFIX: Some monsters overflow this value on high difficulty (fixed)
 	unsigned char mAFNum2;
 	unsigned char mMinDamage2;
 	unsigned char mMaxDamage2;
@@ -512,7 +425,7 @@ typedef struct MonsterData {
 } MonsterData;
 
 typedef struct CMonster {
-	unsigned char mtype;
+	int mtype;
 	// TODO: Add enum for place flags
 	unsigned char mPlaceFlags;
 	AnimStruct Anims[6];
@@ -524,8 +437,8 @@ typedef struct CMonster {
 	BOOL has_special;
 	unsigned char mAFNum;
 	char mdeadval;
-	MonsterData *MData;
-	// A TRN file contains a sequence of colour transitions, represented
+	const MonsterData *MData;
+	// A TRN file contains a sequence of color transitions, represented
 	// as indexes into a palette. (a 256 byte array of palette indices)
 	BYTE *trans_file;
 } CMonster;
@@ -539,26 +452,26 @@ typedef struct MonsterStruct { // note: missing field _mAFNum
 	int _mgoalvar3;
 	int field_18;
 	unsigned char _pathcount;
-	int _mx;
-	int _my;
-	int _mfutx;
-	int _mfuty;
-	int _moldx;
-	int _moldy;
-	int _mxoff;
-	int _myoff;
-	int _mxvel;
-	int _myvel;
-	int _mdir;
-	int _menemy;
-	unsigned char _menemyx;
-	unsigned char _menemyy;
-	short falign_52; // probably _mAFNum (unused)
+	int _mx;                // Tile X-position of monster
+	int _my;                // Tile Y-position of monster
+	int _mfutx;             // Future tile X-position of monster. Set at start of walking animation
+	int _mfuty;             // Future tile Y-position of monster. Set at start of walking animation
+	int _moldx;             // Most recent X-position in dMonster.
+	int _moldy;             // Most recent Y-position in dMonster.
+	int _mxoff;             // Monster sprite's pixel X-offset from tile.
+	int _myoff;             // Monster sprite's pixel Y-offset from tile.
+	int _mxvel;             // Pixel X-velocity while walking. Applied to _mxoff
+	int _myvel;             // Pixel Y-velocity while walking. Applied to _myoff
+	int _mdir;              // Direction faced by monster (direction enum)
+	int _menemy;            // The current target of the mosnter. An index in to either the plr or monster array based on the _meflag value.
+	unsigned char _menemyx; // X-coordinate of enemy (usually correspond's to the enemy's futx value)
+	unsigned char _menemyy; // Y-coordinate of enemy (usually correspond's to the enemy's futy value)
+	short falign_52;        // probably _mAFNum (unused)
 	unsigned char *_mAnimData;
-	int _mAnimDelay;
-	int _mAnimCnt;
-	int _mAnimLen;
-	int _mAnimFrame;
+	int _mAnimDelay; // Tick length of each frame in the current animation
+	int _mAnimCnt;   // Increases by one each game tick, counting how close we are to _pAnimDelay
+	int _mAnimLen;   // Number of frames in current animation
+	int _mAnimFrame; // Current frame of animation.
 	BOOL _meflag;
 	BOOL _mDelFlag;
 	int _mVar1;
@@ -566,9 +479,9 @@ typedef struct MonsterStruct { // note: missing field _mAFNum
 	int _mVar3;
 	int _mVar4;
 	int _mVar5;
-	int _mVar6;
-	int _mVar7;
-	int _mVar8;
+	int _mVar6; // Used as _mxoff but with a higher range so that we can correctly apply velocities of a smaller number
+	int _mVar7; // Used as _myoff but with a higher range so that we can correctly apply velocities of a smaller number
+	int _mVar8; // Value used to measure progress for moving from one tile to another
 	int _mmaxhp;
 	int _mhitpoints;
 	unsigned char _mAi;
@@ -588,10 +501,10 @@ typedef struct MonsterStruct { // note: missing field _mAFNum
 	char mWhoHit;
 	char mLevel;
 	unsigned short mExp;
-	unsigned char mHit;
+	unsigned short mHit;
 	unsigned char mMinDamage;
 	unsigned char mMaxDamage;
-	unsigned char mHit2;
+	unsigned short mHit2;
 	unsigned char mMinDamage2;
 	unsigned char mMaxDamage2;
 	unsigned char mArmorClass;
@@ -601,16 +514,16 @@ typedef struct MonsterStruct { // note: missing field _mAFNum
 	unsigned char leader;
 	unsigned char leaderflag;
 	unsigned char packsize;
-	unsigned char mlid;
-	char *mName;
+	Sint8 mlid; // BUGFIX -1 is used when not emitting light this should be signed (fixed)
+	const char *mName;
 	CMonster *MType;
-	MonsterData *MData;
+	const MonsterData *MData;
 } MonsterStruct;
 
 typedef struct UniqMonstStruct {
-	char mtype;
-	char *mName;
-	char *mTrnName;
+	int mtype;
+	const char *mName;
+	const char *mTrnName;
 	unsigned char mlevel;
 	unsigned short mmaxhp;
 	unsigned char mAi;
@@ -637,8 +550,8 @@ typedef struct ObjDataStruct {
 	char otheme;
 	char oquest;
 	int oAnimFlag;
-	int oAnimDelay;
-	int oAnimLen;
+	int oAnimDelay; // Tick length of each frame in the current animation
+	int oAnimLen;   // Number of frames in current animation
 	int oAnimWidth;
 	BOOL oSolidFlag;
 	BOOL oMissFlag;
@@ -655,10 +568,10 @@ typedef struct ObjectStruct {
 	int _oLight;
 	int _oAnimFlag;
 	unsigned char *_oAnimData;
-	int _oAnimDelay;
-	int _oAnimCnt;
-	int _oAnimLen;
-	int _oAnimFrame;
+	int _oAnimDelay; // Tick length of each frame in the current animation
+	int _oAnimCnt;   // Increases by one each game tick, counting how close we are to _pAnimDelay
+	int _oAnimLen;   // Number of frames in current animation
+	int _oAnimFrame; // Current frame of animation.
 	int _oAnimWidth;
 	int _oAnimWidth2;
 	BOOL _oDelFlag;
@@ -695,300 +608,6 @@ typedef struct PortalStruct {
 } PortalStruct;
 
 //////////////////////////////////////////////////
-// msg
-//////////////////////////////////////////////////
-
-#pragma pack(push, 1)
-typedef struct TCmd {
-	BYTE bCmd;
-} TCmd;
-
-typedef struct TCmdLoc {
-	BYTE bCmd;
-	BYTE x;
-	BYTE y;
-} TCmdLoc;
-
-typedef struct TCmdLocParam1 {
-	BYTE bCmd;
-	BYTE x;
-	BYTE y;
-	WORD wParam1;
-} TCmdLocParam1;
-
-typedef struct TCmdLocParam2 {
-	BYTE bCmd;
-	BYTE x;
-	BYTE y;
-	WORD wParam1;
-	WORD wParam2;
-} TCmdLocParam2;
-
-typedef struct TCmdLocParam3 {
-	BYTE bCmd;
-	BYTE x;
-	BYTE y;
-	WORD wParam1;
-	WORD wParam2;
-	WORD wParam3;
-} TCmdLocParam3;
-
-typedef struct TCmdParam1 {
-	BYTE bCmd;
-	WORD wParam1;
-} TCmdParam1;
-
-typedef struct TCmdParam2 {
-	BYTE bCmd;
-	WORD wParam1;
-	WORD wParam2;
-} TCmdParam2;
-
-typedef struct TCmdParam3 {
-	BYTE bCmd;
-	WORD wParam1;
-	WORD wParam2;
-	WORD wParam3;
-} TCmdParam3;
-
-typedef struct TCmdGolem {
-	BYTE bCmd;
-	BYTE _mx;
-	BYTE _my;
-	BYTE _mdir;
-	char _menemy;
-	int _mhitpoints;
-	BYTE _currlevel;
-} TCmdGolem;
-
-typedef struct TCmdQuest {
-	BYTE bCmd;
-	BYTE q;
-	BYTE qstate;
-	BYTE qlog;
-	BYTE qvar1;
-} TCmdQuest;
-
-typedef struct TCmdGItem {
-	BYTE bCmd;
-	BYTE bMaster;
-	BYTE bPnum;
-	BYTE bCursitem;
-	BYTE bLevel;
-	BYTE x;
-	BYTE y;
-	WORD wIndx;
-	WORD wCI;
-	int dwSeed;
-	BYTE bId;
-	BYTE bDur;
-	BYTE bMDur;
-	BYTE bCh;
-	BYTE bMCh;
-	WORD wValue;
-	DWORD dwBuff;
-	int dwTime;
-} TCmdGItem;
-
-typedef struct TCmdPItem {
-	BYTE bCmd;
-	BYTE x;
-	BYTE y;
-	WORD wIndx;
-	WORD wCI;
-	int dwSeed;
-	BYTE bId;
-	BYTE bDur;
-	BYTE bMDur;
-	BYTE bCh;
-	BYTE bMCh;
-	WORD wValue;
-	DWORD dwBuff;
-} TCmdPItem;
-
-typedef struct TCmdChItem {
-	BYTE bCmd;
-	BYTE bLoc;
-	WORD wIndx;
-	WORD wCI;
-	int dwSeed;
-	BYTE bId;
-} TCmdChItem;
-
-typedef struct TCmdDelItem {
-	BYTE bCmd;
-	BYTE bLoc;
-} TCmdDelItem;
-
-typedef struct TCmdDamage {
-	BYTE bCmd;
-	BYTE bPlr;
-	DWORD dwDam;
-} TCmdDamage;
-
-typedef struct TCmdPlrInfoHdr {
-	BYTE bCmd;
-	WORD wOffset;
-	WORD wBytes;
-} TCmdPlrInfoHdr;
-
-typedef struct TCmdString {
-	BYTE bCmd;
-	char str[MAX_SEND_STR_LEN];
-} TCmdString;
-
-typedef struct TFakeCmdPlr {
-	BYTE bCmd;
-	BYTE bPlr;
-} TFakeCmdPlr;
-
-typedef struct TFakeDropPlr {
-	BYTE bCmd;
-	BYTE bPlr;
-	DWORD dwReason;
-} TFakeDropPlr;
-
-typedef struct TSyncHeader {
-	BYTE bCmd;
-	BYTE bLevel;
-	WORD wLen;
-	BYTE bObjId;
-	BYTE bObjCmd;
-	BYTE bItemI;
-	BYTE bItemX;
-	BYTE bItemY;
-	WORD wItemIndx;
-	WORD wItemCI;
-	DWORD dwItemSeed;
-	BYTE bItemId;
-	BYTE bItemDur;
-	BYTE bItemMDur;
-	BYTE bItemCh;
-	BYTE bItemMCh;
-	WORD wItemVal;
-	DWORD dwItemBuff;
-	BYTE bPInvLoc;
-	WORD wPInvIndx;
-	WORD wPInvCI;
-	DWORD dwPInvSeed;
-	BYTE bPInvId;
-} TSyncHeader;
-
-typedef struct TSyncMonster {
-	BYTE _mndx;
-	BYTE _mx;
-	BYTE _my;
-	BYTE _menemy;
-	BYTE _mdelta;
-} TSyncMonster;
-
-typedef struct TPktHdr {
-	BYTE px;
-	BYTE py;
-	BYTE targx;
-	BYTE targy;
-	int php;
-	int pmhp;
-	BYTE bstr;
-	BYTE bmag;
-	BYTE bdex;
-	WORD wCheck;
-	WORD wLen;
-} TPktHdr;
-
-typedef struct TPkt {
-	TPktHdr hdr;
-	BYTE body[493];
-} TPkt;
-
-typedef struct DMonsterStr {
-	BYTE _mx;
-	BYTE _my;
-	BYTE _mdir;
-	BYTE _menemy;
-	BYTE _mactive;
-	int _mhitpoints;
-} DMonsterStr;
-
-typedef struct DObjectStr {
-	BYTE bCmd;
-} DObjectStr;
-
-typedef struct DLevel {
-	TCmdPItem item[MAXITEMS];
-	DObjectStr object[MAXOBJECTS];
-	DMonsterStr monster[MAXMONSTERS];
-} DLevel;
-
-typedef struct LocalLevel {
-	BYTE automapsv[DMAXX][DMAXY];
-} LocalLevel;
-
-typedef struct DPortal {
-	BYTE x;
-	BYTE y;
-	BYTE level;
-	BYTE ltype;
-	BYTE setlvl;
-} DPortal;
-
-typedef struct MultiQuests {
-	BYTE qstate;
-	BYTE qlog;
-	BYTE qvar1;
-} MultiQuests;
-
-typedef struct DJunk {
-	DPortal portal[MAXPORTAL];
-	MultiQuests quests[MAXMULTIQUESTS];
-} DJunk;
-#pragma pack(pop)
-
-#pragma pack(push, 1)
-typedef struct TMegaPkt {
-	struct TMegaPkt *pNext;
-	DWORD dwSpaceLeft;
-	BYTE data[32000];
-} TMegaPkt;
-#pragma pack(pop)
-
-typedef struct TBuffer {
-	DWORD dwNextWriteOffset;
-	BYTE bData[4096];
-} TBuffer;
-
-//////////////////////////////////////////////////
-// quests
-//////////////////////////////////////////////////
-
-typedef struct QuestStruct {
-	unsigned char _qlevel;
-	unsigned char _qtype;
-	unsigned char _qactive;
-	unsigned char _qlvltype;
-	int _qtx;
-	int _qty;
-	unsigned char _qslvl;
-	unsigned char _qidx;
-	unsigned char _qmsg;
-	unsigned char _qvar1;
-	unsigned char _qvar2;
-	int _qlog;
-} QuestStruct;
-
-typedef struct QuestData {
-	unsigned char _qdlvl;
-	char _qdmultlvl;
-	unsigned char _qlvlt;
-	unsigned char _qdtype;
-	unsigned char _qdrnd;
-	unsigned char _qslvl;
-	int _qflags; /* unsigned char */
-	int _qdmsg;
-	char *_qlstr;
-} QuestData;
-
-//////////////////////////////////////////////////
 // gamemenu/gmenu
 //////////////////////////////////////////////////
 
@@ -996,8 +615,8 @@ typedef struct QuestData {
 
 typedef struct TMenuItem {
 	DWORD dwFlags;
-	char *pszStr;
-	void(* fnMenu)(BOOL); /* fix, should have one arg */
+	const char *pszStr;
+	void (*fnMenu)(BOOL); /* fix, should have one arg */
 } TMenuItem;
 
 // TPDEF PTR FCN VOID TMenuUpdateFcn
@@ -1010,8 +629,8 @@ typedef struct SpellData {
 	unsigned char sName;
 	unsigned char sManaCost;
 	unsigned char sType;
-	char *sNameText;
-	char *sSkillText;
+	const char *sNameText;
+	const char *sSkillText;
 	int sBookLvl;
 	int sStaffLvl;
 	BOOL sTargeted;
@@ -1026,95 +645,6 @@ typedef struct SpellData {
 	int sBookCost;
 	int sStaffCost;
 } SpellData;
-
-//////////////////////////////////////////////////
-// towners
-//////////////////////////////////////////////////
-
-typedef struct TNQ {
-	unsigned char _qsttype;
-	unsigned char _qstmsg;
-	BOOLEAN _qstmsgact;
-} TNQ;
-
-typedef struct TownerStruct {
-	int _tmode;
-	int _ttype;
-	int _tx;
-	int _ty;
-	int _txoff;
-	int _tyoff;
-	int _txvel;
-	int _tyvel;
-	int _tdir;
-	unsigned char *_tAnimData;
-	int _tAnimDelay;
-	int _tAnimCnt;
-	int _tAnimLen;
-	int _tAnimFrame;
-	int _tAnimFrameCnt;
-	char _tAnimOrder;
-	int _tAnimWidth;
-	int _tAnimWidth2;
-	int _tTenPer;
-	int _teflag;
-	int _tbtcnt;
-	int _tSelFlag;
-	BOOL _tMsgSaid;
-	TNQ qsts[MAXQUESTS];
-	int _tSeed;
-	int _tVar1;
-	int _tVar2;
-	int _tVar3;
-	int _tVar4;
-	char _tName[PLR_NAME_LEN];
-	unsigned char *_tNAnim[8];
-	int _tNFrames;
-	unsigned char *_tNData;
-} TownerStruct;
-
-typedef struct QuestTalkData {
-	int _qinfra;
-	int _qblkm;
-	int _qgarb;
-	int _qzhar;
-	int _qveil;
-	int _qmod;
-	int _qbutch;
-	int _qbol;
-	int _qblind;
-	int _qblood;
-	int _qanvil;
-	int _qwarlrd;
-	int _qking;
-	int _qpw;
-	int _qbone;
-	int _qvb;
-} QuestTalkData;
-
-//////////////////////////////////////////////////
-// gendung
-//////////////////////////////////////////////////
-
-typedef struct ScrollStruct {
-	int _sxoff;
-	int _syoff;
-	int _sdx;
-	int _sdy;
-	int _sdir;
-} ScrollStruct;
-
-typedef struct THEME_LOC {
-	int x;
-	int y;
-	int ttval;
-	int width;
-	int height;
-} THEME_LOC;
-
-typedef struct MICROS {
-	WORD mt[16];
-} MICROS;
 
 //////////////////////////////////////////////////
 // drlg
@@ -1166,47 +696,10 @@ typedef struct InvXY {
 } InvXY;
 
 //////////////////////////////////////////////////
-// lighting
-//////////////////////////////////////////////////
-
-typedef struct LightListStruct {
-	int _lx;
-	int _ly;
-	int _lradius;
-	int _lid;
-	int _ldel;
-	int _lunflag;
-	int field_18;
-	int _lunx;
-	int _luny;
-	int _lunr;
-	int _xoff;
-	int _yoff;
-	int _lflags;
-} LightListStruct;
-
-//////////////////////////////////////////////////
-// dead
-//////////////////////////////////////////////////
-
-typedef struct DeadStruct {
-	unsigned char *_deadData[8];
-	int _deadFrame;
-	int _deadWidth;
-	int _deadWidth2;
-	char _deadtrans;
-} DeadStruct;
-
-//////////////////////////////////////////////////
 // diabloui
 //////////////////////////////////////////////////
 
 // TPDEF PTR FCN VOID PLAYSND
-
-typedef struct _gamedata {
-	int dwSeed;
-	BYTE bDiff;
-} _gamedata;
 
 typedef struct _uidefaultstats {
 	WORD strength;
@@ -1284,55 +777,21 @@ typedef struct _SNETPLAYERDATA {
 	int size;
 	char *playername;
 	char *playerdescription;
-	int reserved;
 } _SNETPLAYERDATA;
-
-typedef struct _SNETPROGRAMDATA {
-	int size;
-	char *programname;
-	char *programdescription;
-	int programid;
-	int versionid;
-	int reserved1;
-	int maxplayers;
-	_gamedata *initdata;
-	int initdatabytes;
-	void *reserved2;
-	int optcategorybits;
-	char *cdkey;
-	char *registereduser;
-	int spawned;
-	int lcid;
-} _SNETPROGRAMDATA;
 
 typedef struct _SNETVERSIONDATA {
 	int size;
-	char *versionstring;
-	char *executablefile;
-	char *originalarchivefile;
-	char *patcharchivefile;
+	const char *versionstring;
 } _SNETVERSIONDATA;
 
 typedef struct _SNETUIDATA {
 	int size;
-	int uiflags;
-	HWND parentwindow;
-	void(* artcallback)();
-	void(* authcallback)();
-	void(* createcallback)();
-	void(* drawdesccallback)();
-	void(* selectedcallback)();
-	void(* messageboxcallback)();
-	void(* soundcallback)();
-	void(* statuscallback)();
-	void(* getdatacallback)();
-	void(* categorycallback)();
-	void(* categorylistcallback)();
-	void(* newaccountcallback)();
-	void(* profilecallback)();
+	void (*selectedcallback)();
+	void (*statuscallback)();
+	void (*categorylistcallback)();
+	void (*newaccountcallback)();
 	const char **profilefields;
-	void(* profilebitmapcallback)();
-	int(*selectnamecallback)(
+	int (*selectnamecallback)(
 	    const struct _SNETPROGRAMDATA *,
 	    const struct _SNETPLAYERDATA *,
 	    const struct _SNETUIDATA *,
@@ -1341,207 +800,12 @@ typedef struct _SNETUIDATA {
 	    char *, DWORD,  /* character name will be copied here */
 	    char *, DWORD,  /* character "description" will be copied here (used to advertise games) */
 	    BOOL *          /* new character? - unsure about this */
-	    );
-	void(* changenamecallback)();
+	);
+	void (*changenamecallback)();
 } _SNETUIDATA;
 
 // TPDEF PTR FCN UCHAR SNETSPIBIND
 // TPDEF PTR FCN UCHAR SNETSPIQUERY
-
-//////////////////////////////////////////////////
-// pack
-//////////////////////////////////////////////////
-
-#pragma pack(push, 1)
-typedef struct PkItemStruct {
-	DWORD iSeed;
-	WORD iCreateInfo;
-	WORD idx;
-	BYTE bId;
-	BYTE bDur;
-	BYTE bMDur;
-	BYTE bCh;
-	BYTE bMCh;
-	WORD wValue;
-	DWORD dwBuff;
-} PkItemStruct;
-
-typedef struct PkPlayerStruct {
-	FILETIME archiveTime;
-	char destAction;
-	char destParam1;
-	char destParam2;
-	BYTE plrlevel;
-	BYTE px;
-	BYTE py;
-	BYTE targx;
-	BYTE targy;
-	char pName[PLR_NAME_LEN];
-	char pClass;
-	BYTE pBaseStr;
-	BYTE pBaseMag;
-	BYTE pBaseDex;
-	BYTE pBaseVit;
-	char pLevel;
-	BYTE pStatPts;
-	int pExperience;
-	int pGold;
-	int pHPBase;
-	int pMaxHPBase;
-	int pManaBase;
-	int pMaxManaBase;
-	char pSplLvl[MAX_SPELLS];
-	uint64_t pMemSpells;
-	PkItemStruct InvBody[NUM_INVLOC];
-	PkItemStruct InvList[NUM_INV_GRID_ELEM];
-	char InvGrid[NUM_INV_GRID_ELEM];
-	BYTE _pNumInv;
-	PkItemStruct SpdList[MAXBELTITEMS];
-	char pTownWarps;
-	char pDungMsgs;
-	char pLvlLoad;
-	char pBattleNet;
-	BOOLEAN pManaShield;
-	char bReserved[3];
-	short wReserved[8];
-	int pDiabloKillLevel;
-	int dwReserved[7];
-} PkPlayerStruct;
-#pragma pack(pop)
-
-//////////////////////////////////////////////////
-// path
-//////////////////////////////////////////////////
-
-typedef struct PATHNODE {
-	char f;
-	char h;
-	char g;
-	int x;
-	int y;
-	struct PATHNODE *Parent;
-	struct PATHNODE *Child[8];
-	struct PATHNODE *NextNode;
-} PATHNODE;
-
-// TPDEF PTR FCN UCHAR CHECKFUNC1
-
-// TPDEF PTR FCN UCHAR CHECKFUNC
-
-//////////////////////////////////////////////////
-// sha
-//////////////////////////////////////////////////
-
-typedef struct SHA1Context {
-	DWORD state[5];
-	DWORD count[2];
-	char buffer[64];
-} SHA1Context;
-
-//////////////////////////////////////////////////
-// tmsg
-//////////////////////////////////////////////////
-
-#pragma pack(push, 1)
-typedef struct TMsg TMsg;
-
-typedef struct TMsgHdr {
-	TMsg *pNext;
-	int dwTime;
-	BYTE bLen;
-} TMsgHdr;
-
-typedef struct TMsg {
-	TMsgHdr hdr;
-	// this is actually alignment padding, but the message body is appended to the struct
-	// so it's convenient to use byte-alignment and name it "body"
-	unsigned char body[3];
-} TMsg;
-#pragma pack(pop)
-
-//////////////////////////////////////////////////
-// mpqapi
-//////////////////////////////////////////////////
-
-typedef struct _FILEHEADER {
-	int signature;
-	int headersize;
-	int filesize;
-	WORD version;
-	short sectorsizeid;
-	int hashoffset;
-	int blockoffset;
-	int hashcount;
-	int blockcount;
-	char pad[72];
-} _FILEHEADER;
-
-typedef struct _HASHENTRY {
-	uint32_t hashcheck[2];
-	uint32_t lcid;
-	uint32_t block;
-} _HASHENTRY;
-
-typedef struct _BLOCKENTRY {
-	uint32_t offset;
-	uint32_t sizealloc;
-	uint32_t sizefile;
-	uint32_t flags;
-} _BLOCKENTRY;
-
-// TPDEF PTR FCN UCHAR TGetNameFcn
-
-// TPDEF PTR FCN VOID TCrypt
-
-//////////////////////////////////////////////////
-// trigs
-//////////////////////////////////////////////////
-
-typedef struct TriggerStruct {
-	int _tx;
-	int _ty;
-	int _tmsg;
-	int _tlvl;
-} TriggerStruct;
-
-//////////////////////////////////////////////////
-// stores
-//////////////////////////////////////////////////
-
-typedef struct STextStruct {
-	int _sx;
-	int _syoff;
-	char _sstr[128];
-	int _sjust;
-	char _sclr;
-	int _sline;
-	int _ssel;
-	int _sval;
-} STextStruct;
-
-//////////////////////////////////////////////////
-// wave
-//////////////////////////////////////////////////
-
-typedef struct MEMFILE {
-	DWORD end;
-	LONG offset;
-	DWORD buf_len;
-	DWORD dist;
-	DWORD bytes_to_read;
-	BYTE *buf;
-	HANDLE file;
-} MEMFILE;
-
-//////////////////////////////////////////////////
-// plrmsg
-//////////////////////////////////////////////////
-
-typedef struct _plrmsg {
-	DWORD time;
-	unsigned char player;
-	char str[144];
-} _plrmsg;
 
 //////////////////////////////////////////////////
 // capture
@@ -1568,14 +832,4 @@ typedef struct _PcxHeader {
 	BYTE Filler[54];
 } PCXHEADER;
 
-//////////////////////////////////////////////////
-// encrypt
-//////////////////////////////////////////////////
-
-typedef struct TDataInfo {
-	BYTE *srcData;
-	DWORD srcOffset;
-	BYTE *destData;
-	DWORD destOffset;
-	DWORD size;
-} TDataInfo;
+DEVILUTION_END_NAMESPACE

@@ -1,3 +1,8 @@
+/**
+ * @file plrmsg.cpp
+ *
+ * Implementation of functionality for printing the ingame chat messages.
+ */
 #include "all.h"
 
 DEVILUTION_BEGIN_NAMESPACE
@@ -5,6 +10,7 @@ DEVILUTION_BEGIN_NAMESPACE
 static BYTE plr_msg_slot;
 _plrmsg plr_msgs[PMSG_COUNT];
 
+/** Maps from player_num to text color, as used in chat messages. */
 const char text_color_from_player_num[MAX_PLRS + 1] = { COL_WHITE, COL_WHITE, COL_WHITE, COL_WHITE, COL_GOLD };
 
 void plrmsg_delay(BOOL delay)
@@ -24,16 +30,14 @@ void plrmsg_delay(BOOL delay)
 		pMsg->time += plrmsg_ticks;
 }
 
-char *ErrorPlrMsg(const char *pszMsg)
+void ErrorPlrMsg(const char *pszMsg)
 {
-	char *result;
 	_plrmsg *pMsg = &plr_msgs[plr_msg_slot];
 	plr_msg_slot = (plr_msg_slot + 1) & (PMSG_COUNT - 1);
 	pMsg->player = MAX_PLRS;
 	pMsg->time = SDL_GetTicks();
-	result = strncpy(pMsg->str, pszMsg, sizeof(pMsg->str));
+	strncpy(pMsg->str, pszMsg, sizeof(pMsg->str));
 	pMsg->str[sizeof(pMsg->str) - 1] = '\0';
-	return result;
 }
 
 size_t EventPlrMsg(const char *pszFmt, ...)
@@ -80,37 +84,35 @@ void InitPlrMsg()
 	plr_msg_slot = 0;
 }
 
-void DrawPlrMsg()
+void DrawPlrMsg(CelOutputBuffer out)
 {
 	int i;
-	DWORD x = 74;
-	DWORD y = 230;
+	DWORD x = 10 + SCREEN_X;
+	DWORD y = 70 + SCREEN_Y;
 	DWORD width = SCREEN_WIDTH - 20;
 	_plrmsg *pMsg;
 
 	if (chrflag || questlog) {
-		x = 394;
-		width -= 300;
+		x += SPANEL_WIDTH;
+		width -= SPANEL_WIDTH;
 	}
 	if (invflag || sbookflag)
-		width -= 300;
+		width -= SPANEL_WIDTH;
 
 	if (width < 300)
 		return;
 
-	if (width > 620)
-		width = 620;
-
 	pMsg = plr_msgs;
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < PMSG_COUNT; i++) {
 		if (pMsg->str[0])
-			PrintPlrMsg(x, y, width, pMsg->str, text_color_from_player_num[pMsg->player]);
+			PrintPlrMsg(out, x, y, width, pMsg->str, text_color_from_player_num[pMsg->player]);
 		pMsg++;
 		y += 35;
 	}
 }
 
-void PrintPlrMsg(DWORD x, DWORD y, DWORD width, const char *str, BYTE col)
+// TODO: Can be made static
+void PrintPlrMsg(CelOutputBuffer out, DWORD x, DWORD y, DWORD width, const char *str, BYTE col)
 {
 	int line = 0;
 
@@ -140,7 +142,7 @@ void PrintPlrMsg(DWORD x, DWORD y, DWORD width, const char *str, BYTE col)
 			c = gbFontTransTbl[(BYTE)*str++];
 			c = fontframe[c];
 			if (c)
-				PrintChar(sx, y, c, col);
+				PrintChar(out, sx, y, c, col);
 			sx += fontkern[c] + 1;
 		}
 

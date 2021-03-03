@@ -5,10 +5,10 @@
 Nightly builds | Platform
 ---:| ---
 [![CircleCI](https://circleci.com/gh/diasurgical/devilutionX.svg?style=svg)](https://circleci.com/gh/diasurgical/devilutionX) | Linux 32bit & 64bit, Windows 32bit, Nintendo Switch, SDL1, Amiga
-[![Build Status](https://travis-ci.org/diasurgical/devilutionX.svg?branch=master)](https://travis-ci.org/diasurgical/devilutionX) | macOS 64bit, Linux ppc64le
+[![Build Status](https://www.travis-ci.com/diasurgical/devilutionX.svg?branch=master)](https://www.travis-ci.com/diasurgical/devilutionX) | macOS 64bit, Linux ppc64le
 [![Build status](https://ci.appveyor.com/api/projects/status/1a0jus2372qvksht?svg=true)](https://ci.appveyor.com/project/AJenbo/devilutionx) | Windows 64bit (MSVC)
 
-![Discord Channel](https://avatars3.githubusercontent.com/u/1965106?s=16&v=4) [Discord Chat Channel](https://discord.gg/aQBQdDe)
+![Discord Channel](https://avatars3.githubusercontent.com/u/1965106?s=16&v=4) [Discord Chat Channel](https://discord.gg/YQKCAYQ)
 
 # How To Play:
  - Download [the latest DevilutionX release](https://github.com/diasurgical/devilutionX/releases), or build from source
@@ -44,7 +44,7 @@ make -j$(nproc)
 Make sure you have [Homebrew](https://brew.sh/) installed, then run:
 
 ```
-brew bundle
+brew bundle install
 cd build
 cmake ..
 cmake --build . -j $(sysctl -n hw.physicalcpu)
@@ -55,6 +55,19 @@ cmake --build . -j $(sysctl -n hw.physicalcpu)
 ### Installing dependencies
 ```
 pkg install cmake sdl2_mixer sdl2_ttf libsodium
+```
+### Compiling
+```
+cd build
+cmake ..
+cmake --build . -j $(sysctl -n hw.ncpu)
+```
+</details>
+<details><summary>NetBSD</summary>
+
+### Installing dependencies
+```
+pkgin install cmake SDL2_mixer SDL2_ttf libsodium
 ```
 ### Compiling
 ```
@@ -82,15 +95,38 @@ cmake --build . -j $(sysctl -n hw.ncpuonline)
 
 ### Installing dependencies on WSL, Debian and Ubuntu
 
-Download and place the 32bit MinGW Development Libraries of [SDL2](https://www.libsdl.org/download-2.0.php), [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/) and [Libsodium](https://github.com/jedisct1/libsodium/releases) in `/usr/i686-w64-mingw32`.
+### 32-bit
+
+Download and place the 32bit MinGW Development Libraries of [SDL2](https://www.libsdl.org/download-2.0.php), [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/) and [Libsodium](https://github.com/jedisct1/libsodium/releases) in `/usr/i686-w64-mingw32`. This can be done automatically by running `Packaging/windows/mingw-prep.sh`.
+NOTE: SDL2 2.0.12 appears to not compile correctly.
 
 ```
 sudo apt-get install cmake gcc-mingw-w64-i686 g++-mingw-w64-i686
 ```
+
+### 64-bit
+
+Download and place the 64bit MinGW Development Libraries of [SDL2](https://www.libsdl.org/download-2.0.php), [SDL2_mixer](https://www.libsdl.org/projects/SDL_mixer/), [SDL2_ttf](https://www.libsdl.org/projects/SDL_ttf/) and [Libsodium](https://github.com/jedisct1/libsodium/releases) in `/usr/x86_64-w64-mingw32`. This can be done automatically by running `Packaging/windows/mingw-prep64.sh`.
+NOTE: SDL2 2.0.12 appears to not compile correctly.
+
+```
+sudo apt-get install cmake gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+```
 ### Compiling
+
+### 32-bit
+
 ```
 cd build
 cmake -DCMAKE_TOOLCHAIN_FILE=../CMake/mingwcc.cmake ..
+make -j$(nproc)
+```
+
+### 64-bit
+
+```
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=../CMake/mingwcc64.cmake ..
 make -j$(nproc)
 ```
 </details>
@@ -155,6 +191,47 @@ The nro-file will be generated in the build folder. Test with an emulator (RyuJi
 
 [Nintendo Switch manual](docs/manual/platforms/switch.md)
 </details>
+
+<details><summary>Nintendo 3DS</summary>
+
+### Installing dependencies
+
+https://devkitpro.org/wiki/Getting_Started
+
+
+- Install (dkp-)pacman: https://devkitpro.org/wiki/devkitPro_pacman
+
+- Install required packages with (dkp-)pacman:
+```
+sudo (dkp-)pacman -S devkitARM general-tools 3dstools devkitpro-pkgbuild-helpers \
+	libctru citro3d 3ds-sdl 3ds-sdl_ttf 3ds-sdl_mixer \
+	3ds-freetype 3ds-libogg 3ds-libvorbisidec 3ds-mikmod
+```
+- Download or compile [bannertool](https://github.com/Steveice10/bannertool/releases) and [makerom](https://github.com/jakcron/Project_CTR/releases)
+  - Copy binaries to: `/opt/devkitpro/tools/bin/`
+
+### Compiling
+```
+cd build
+cmake .. -DNIGHTLY_BUILD=ON -DCMAKE_TOOLCHAIN_FILE=/opt/devkitpro/3ds.cmake
+make -j$(nproc)
+```
+The output-files will be generated in the build folder.
+
+[Nintendo 3DS manual](docs/manual/platforms/n3ds.md)
+</details>
+
+<details><summary>PlayStation Vita</summary>
+
+### Compiling
+```
+cd build
+cmake -DCMAKE_TOOLCHAIN_FILE=${VITASDK}/share/vita.toolchain.cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+```
+[PlayStation Vita manual](docs/manual/platforms/vita.md)
+</details>
+
 
 <details><summary>Haiku</summary>
 
@@ -269,9 +346,9 @@ select Icons -> Information in the top menu.
 - `-DBINARY_RELEASE=ON` changed build type to release and optimize for distribution.
 - `-DNONET=ON` disable network support, this also removes the need for the ASIO and Sodium.
 - `-DUSE_SDL1=ON` build for SDL v1 instead of v2, not all features are supported under SDL v1, notably upscaling.
-- `-DSPAWN=ON` build the shareware version, using spawn.mpq from the original shareware; which can still be [downloaded](http://ftp.blizzard.com/pub/demos/diablosw.exe) for free.
 - `-DCMAKE_TOOLCHAIN_FILE=../CMake/32bit.cmake` generate 32bit builds on 64bit platforms (remember to use the `linux32` command if on Linux).
 - `-DCROSS_PREFIX=/path/to/prefix` set the path to the `i686-w64-mingw32` directory.
+- `-DHELLFIRE=ON` build Hellfire version
 
 ### Debug builds
 - `-DDEBUG=OFF` disable debug mode of the Diablo engine.
@@ -324,13 +401,13 @@ variable (see
 # F.A.Q.
 > Wow, does this mean I can download and play Diablo for free now?
 
-No, you'll need access to the data from the original game. If you don't have an original CD then you can [buy Diablo from GoG.com](https://www.gog.com/game/diablo). Alternately you can use `spawn.mpq` from the [http://ftp.blizzard.com/pub/demos/diablosw.exe](shareware) version and compile the with the SPAWN flag defined.
+No, you'll need access to the data from the original game. If you don't have an original CD then you can [buy Diablo from GoG.com](https://www.gog.com/game/diablo). Alternately you can use `spawn.mpq` from the [http://ftp.blizzard.com/pub/demos/diablosw.exe](shareware) version to play the shareware portion of the game.
 > What game changes does DevilutionX provide
 
 DevilutionX's main focus is to make the game work on multiple platforms. An additional goal is to make the engine mod friendly. As such, there are no changes to gameplay, but we will be making some enhancments to the engine itself. For example, the engine now has upscaling, unlocked fps, controller support, and multiplayer via TCP.
 > Is 1080p supported?
 
-Currently the game simply scales the original 640x480 to best fit, but we are working on widescreen support.
+Yes, the game will automatically adjust to your screen. This can be further adjusted in the game ini file.
 > What about Hellfire?
 
 Hellfire is being worked on and is mostly done, though not fully playable at the moment.
@@ -348,8 +425,10 @@ Battle.net is a service provided by Blizzard. We are not associated with them, s
 [From the beginning until release](docs/CHANGELOG.md)
 
 # Legal
-DevilutionX is released to the Public Domain. The documentation and functionality provided by Devilution may only be utilized with assets provided by ownership of Diablo.
+DevilutionX is released to the Public Domain. The documentation and functionality provided by DevilutionX may only be utilized with assets provided by ownership of Diablo.
+
+The source code in this repository is for non-commerical use only. If you use the source code you may not charge others for access to it or any derivative work thereof.
 
 Diablo® - Copyright © 1996 Blizzard Entertainment, Inc. All rights reserved. Diablo and Blizzard Entertainment are trademarks or registered trademarks of Blizzard Entertainment, Inc. in the U.S. and/or other countries.
 
-Devilution and any of its maintainers are in no way associated with or endorsed by Blizzard Entertainment®.
+DevilutionX and any of its maintainers are in no way associated with or endorsed by Blizzard Entertainment®.

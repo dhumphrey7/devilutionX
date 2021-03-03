@@ -68,16 +68,14 @@ BOOL SNetDropPlayer(int playerid, DWORD flags)
 	return dvlnet_inst->SNetDropPlayer(playerid, flags);
 }
 
-BOOL SNetGetGameInfo(int type, void *dst, unsigned int length, unsigned int *byteswritten)
+BOOL SNetGetGameInfo(int type, void *dst, unsigned int length)
 {
 	switch (type) {
 	case GAMEINFO_NAME:
 		strncpy((char *)dst, gpszGameName, length);
-		*byteswritten = strlen(gpszGameName) + 1;
 		break;
 	case GAMEINFO_PASSWORD:
 		strncpy((char *)dst, gpszGamePassword, length);
-		*byteswritten = strlen(gpszGamePassword) + 1;
 		break;
 	}
 
@@ -86,7 +84,7 @@ BOOL SNetGetGameInfo(int type, void *dst, unsigned int length, unsigned int *byt
 
 BOOL SNetLeaveGame(int type)
 {
-	if (dvlnet_inst == nullptr)
+	if (dvlnet_inst == NULL)
 		return true;
 	return dvlnet_inst->SNetLeaveGame(type);
 }
@@ -109,19 +107,17 @@ int SNetInitializeProvider(unsigned long provider, struct _SNETPROGRAMDATA *clie
  */
 BOOL SNetCreateGame(const char *pszGameName, const char *pszGamePassword, const char *pszGameStatString,
     DWORD dwGameType, char *GameTemplateData, int GameTemplateSize, int playerCount,
-    char *creatorName, char *a11, int *playerID)
+    const char *creatorName, const char *a11, int *playerID)
 {
-	if (GameTemplateSize != 8)
+	if (GameTemplateSize != sizeof(GameData))
 		ABORT();
 	net::buffer_t game_init_info(GameTemplateData, GameTemplateData + GameTemplateSize);
 	dvlnet_inst->setup_gameinfo(std::move(game_init_info));
 
-	char addrstr[129] = "0.0.0.0";
-	getIniValue("dvlnet", "bindaddr", addrstr, 128);
-	strncpy(gpszGameName, addrstr, sizeof(gpszGameName) - 1);
+	strncpy(gpszGameName, sgOptions.szBindAddress, sizeof(gpszGameName) - 1);
 	if (pszGamePassword)
 		strncpy(gpszGamePassword, pszGamePassword, sizeof(gpszGamePassword) - 1);
-	*playerID = dvlnet_inst->create(addrstr, pszGamePassword);
+	*playerID = dvlnet_inst->create(sgOptions.szBindAddress, pszGamePassword);
 	return *playerID != -1;
 }
 
@@ -143,7 +139,7 @@ BOOL SNetGetOwnerTurnsWaiting(DWORD *turns)
 	return dvlnet_inst->SNetGetOwnerTurnsWaiting(turns);
 }
 
-BOOL SNetGetTurnsInTransit(int *turns)
+BOOL SNetGetTurnsInTransit(DWORD *turns)
 {
 	return dvlnet_inst->SNetGetTurnsInTransit(turns);
 }
@@ -164,4 +160,4 @@ BOOL SNetPerformUpgrade(DWORD *upgradestatus)
 	UNIMPLEMENTED();
 }
 
-}
+} // namespace dvl

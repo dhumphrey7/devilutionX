@@ -1,11 +1,20 @@
+/**
+ * @file portal.cpp
+ *
+ * Implementation of functionality for handling town portals.
+ */
 #include "all.h"
 
 DEVILUTION_BEGIN_NAMESPACE
 
+/** In-game state of portals. */
 PortalStruct portal[MAXPORTAL];
+/** Current portal number (a portal array index). */
 int portalindex;
 
+/** X-coordinate of each players portal in town. */
 int WarpDropX[MAXPORTAL] = { 57, 59, 61, 63 };
+/** Y-coordinate of each players portal in town. */
 int WarpDropY[MAXPORTAL] = { 40, 40, 40, 40 };
 
 void InitPortals()
@@ -34,7 +43,7 @@ void AddWarpMissile(int i, int x, int y)
 
 	missiledata[MIS_TOWN].mlSFX = -1;
 	dMissile[x][y] = 0;
-	mi = AddMissile(0, 0, x, y, 0, MIS_TOWN, 0, i, 0, 0);
+	mi = AddMissile(0, 0, x, y, 0, MIS_TOWN, TARGET_MONSTERS, i, 0, 0);
 
 	if (mi != -1) {
 		SetMissDir(mi, 1);
@@ -59,7 +68,7 @@ void SyncPortals()
 			int lvl = currlevel;
 			if (setlevel)
 				lvl = setlvlnum;
-			if (portal[i].level == lvl)
+			if (portal[i].level == lvl && portal[i].setlvl == setlevel)
 				AddWarpMissile(i, portal[i].x, portal[i].y);
 		}
 	}
@@ -107,7 +116,7 @@ void RemovePortalMissile(int id)
 			dFlags[missile[mi]._mix][missile[mi]._miy] &= ~BFLAG_MISSILE;
 			dMissile[missile[mi]._mix][missile[mi]._miy] = 0;
 
-			if (portal[id].level)
+			if (portal[id].level != 0)
 				AddUnLight(missile[mi]._mlid);
 
 			DeleteMissile(mi, i);
@@ -122,7 +131,7 @@ void SetCurrentPortal(int p)
 
 void GetPortalLevel()
 {
-	if (currlevel) {
+	if (currlevel != 0) {
 		setlevel = FALSE;
 		currlevel = 0;
 		plr[myplr].plrlevel = 0;

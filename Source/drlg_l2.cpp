@@ -1,4 +1,8 @@
-#ifndef SPAWN
+/**
+ * @file drlg_l2.cpp
+ *
+ * Implementation of the catacombs level generation algorithms.
+ */
 
 #include <algorithm>
 
@@ -7,8 +11,8 @@
 DEVILUTION_BEGIN_NAMESPACE
 
 int nSx1;
-int nSx2;
 int nSy1;
+int nSx2;
 int nSy2;
 int nRoomCnt;
 BYTE predungeon[DMAXX][DMAXY];
@@ -18,123 +22,1507 @@ HALLNODE *pHallList;
 int Area_Min = 2;
 int Room_Max = 10;
 int Room_Min = 4;
-int Dir_Xadd[5] = { 0, 0, 1, 0, -1 };
-int Dir_Yadd[5] = { 0, -1, 0, 1, 0 };
-ShadowStruct SPATSL2[2] = { { 6, 3, 0, 3, 48, 0, 50 }, { 9, 3, 0, 3, 48, 0, 50 } };
+const int Dir_Xadd[5] = { 0, 0, 1, 0, -1 };
+const int Dir_Yadd[5] = { 0, -1, 0, 1, 0 };
+const ShadowStruct SPATSL2[2] = { { 6, 3, 0, 3, 48, 0, 50 }, { 9, 3, 0, 3, 48, 0, 50 } };
 //short word_48489A = 0;
-BYTE BTYPESL2[161] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 17, 18, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-BYTE BSTYPESL2[161] = { 0, 1, 2, 3, 0, 0, 6, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 6, 6, 6, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 2, 0, 0, 0, 1, 1, 1, 1, 6, 2, 2, 2, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 3, 3, 1, 1, 3, 3, 2, 2, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-BYTE VARCH1[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 7, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH2[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 8, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH3[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 6, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH4[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 9, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH5[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 14, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH6[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 13, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH7[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 16, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH8[] = { 2, 4, 3, 0, 3, 1, 3, 4, 0, 15, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH9[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 7, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH10[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 8, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH11[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 6, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH12[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 9, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH13[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 14, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH14[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 13, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH15[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 16, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH16[] = { 2, 4, 3, 0, 3, 8, 3, 4, 0, 15, 48, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH17[] = { 2, 3, 2, 7, 3, 4, 0, 7, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH18[] = { 2, 3, 2, 7, 3, 4, 0, 8, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH19[] = { 2, 3, 2, 7, 3, 4, 0, 6, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH20[] = { 2, 3, 2, 7, 3, 4, 0, 9, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH21[] = { 2, 3, 2, 7, 3, 4, 0, 14, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH22[] = { 2, 3, 2, 7, 3, 4, 0, 13, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH23[] = { 2, 3, 2, 7, 3, 4, 0, 16, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH24[] = { 2, 3, 2, 7, 3, 4, 0, 15, 141, 39, 47, 44, 0, 0 };
-BYTE VARCH25[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 7, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH26[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 8, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH27[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 6, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH28[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 9, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH29[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 14, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH30[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 13, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH31[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 16, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH32[] = { 2, 4, 3, 0, 3, 4, 3, 1, 0, 15, 48, 0, 51, 39, 47, 44, 0, 0 };
-BYTE VARCH33[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 7, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH34[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 8, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH35[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 6, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH36[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 9, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH37[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 14, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH38[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 13, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH39[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 16, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE VARCH40[] = { 2, 4, 2, 0, 3, 8, 3, 4, 0, 15, 142, 0, 51, 42, 47, 44, 0, 0 };
-BYTE HARCH1[] = { 3, 2, 3, 3, 0, 2, 5, 9, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH2[] = { 3, 2, 3, 3, 0, 2, 5, 6, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH3[] = { 3, 2, 3, 3, 0, 2, 5, 8, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH4[] = { 3, 2, 3, 3, 0, 2, 5, 7, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH5[] = { 3, 2, 3, 3, 0, 2, 5, 15, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH6[] = { 3, 2, 3, 3, 0, 2, 5, 16, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH7[] = { 3, 2, 3, 3, 0, 2, 5, 13, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH8[] = { 3, 2, 3, 3, 0, 2, 5, 14, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH9[] = { 3, 2, 3, 3, 0, 8, 5, 9, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH10[] = { 3, 2, 3, 3, 0, 8, 5, 6, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH11[] = { 3, 2, 3, 3, 0, 8, 5, 8, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH12[] = { 3, 2, 3, 3, 0, 8, 5, 7, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH13[] = { 3, 2, 3, 3, 0, 8, 5, 15, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH14[] = { 3, 2, 3, 3, 0, 8, 5, 16, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH15[] = { 3, 2, 3, 3, 0, 8, 5, 13, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH16[] = { 3, 2, 3, 3, 0, 8, 5, 14, 49, 46, 0, 43, 45, 0 };
-BYTE HARCH17[] = { 3, 2, 1, 3, 0, 8, 5, 9, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH18[] = { 3, 2, 1, 3, 0, 8, 5, 6, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH19[] = { 3, 2, 1, 3, 0, 8, 5, 8, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH20[] = { 3, 2, 1, 3, 0, 8, 5, 7, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH21[] = { 3, 2, 1, 3, 0, 8, 5, 15, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH22[] = { 3, 2, 1, 3, 0, 8, 5, 16, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH23[] = { 3, 2, 1, 3, 0, 8, 5, 13, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH24[] = { 3, 2, 1, 3, 0, 8, 5, 14, 140, 46, 0, 43, 45, 0 };
-BYTE HARCH25[] = { 3, 2, 3, 3, 0, 5, 2, 9, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH26[] = { 3, 2, 3, 3, 0, 5, 2, 6, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH27[] = { 3, 2, 3, 3, 0, 5, 2, 8, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH28[] = { 3, 2, 3, 3, 0, 5, 2, 7, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH29[] = { 3, 2, 3, 3, 0, 5, 2, 15, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH30[] = { 3, 2, 3, 3, 0, 5, 2, 16, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH31[] = { 3, 2, 3, 3, 0, 5, 2, 13, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH32[] = { 3, 2, 3, 3, 0, 5, 2, 14, 49, 46, 0, 40, 45, 0 };
-BYTE HARCH33[] = { 3, 2, 1, 3, 0, 9, 5, 9, 140, 46, 0, 40, 45, 0 };
-BYTE HARCH34[] = { 3, 2, 1, 3, 0, 9, 5, 6, 140, 46, 0, 40, 45, 0 };
-BYTE HARCH35[] = { 3, 2, 1, 3, 0, 9, 5, 8, 140, 46, 0, 40, 45, 0 };
-BYTE HARCH36[] = { 3, 2, 1, 3, 0, 9, 5, 7, 140, 46, 0, 40, 45, 0 };
-BYTE HARCH37[] = { 3, 2, 1, 3, 0, 9, 5, 15, 140, 46, 0, 40, 45, 0 };
-BYTE HARCH38[] = { 3, 2, 1, 3, 0, 9, 5, 16, 140, 46, 0, 40, 45, 0 };
-BYTE HARCH39[] = { 3, 2, 1, 3, 0, 9, 5, 13, 140, 46, 0, 40, 45, 0 };
-BYTE HARCH40[] = { 3, 2, 1, 3, 0, 9, 5, 14, 140, 46, 0, 40, 45, 0 };
-BYTE USTAIRS[] = { 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 72, 77, 0, 0, 76, 0, 0, 0, 0, 0, 0 };
-BYTE DSTAIRS[] = { 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 48, 71, 0, 0, 50, 78, 0, 0, 0, 0, 0 };
-BYTE WARPSTAIRS[] = { 4, 4, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 158, 160, 0, 0, 159, 0, 0, 0, 0, 0, 0 };
-BYTE CRUSHCOL[] = { 3, 3, 3, 1, 3, 2, 6, 3, 3, 3, 3, 0, 0, 0, 0, 83, 0, 0, 0, 0 };
-BYTE BIG1[] = { 2, 2, 3, 3, 3, 3, 113, 0, 112, 0 };
-BYTE BIG2[] = { 2, 2, 3, 3, 3, 3, 114, 115, 0, 0 };
-BYTE BIG3[] = { 1, 2, 1, 1, 117, 116 };
-BYTE BIG4[] = { 2, 1, 2, 2, 118, 119 };
-BYTE BIG5[] = { 2, 2, 3, 3, 3, 3, 120, 122, 121, 123 };
-BYTE BIG6[] = { 1, 2, 1, 1, 125, 124 };
-BYTE BIG7[] = { 2, 1, 2, 2, 126, 127 };
-BYTE BIG8[] = { 2, 2, 3, 3, 3, 3, 128, 130, 129, 131 };
-BYTE BIG9[] = { 2, 2, 1, 3, 1, 3, 133, 135, 132, 134 };
-BYTE BIG10[] = { 2, 2, 2, 2, 3, 3, 136, 137, 3, 3 };
-BYTE RUINS1[] = { 1, 1, 1, 80 };
-BYTE RUINS2[] = { 1, 1, 1, 81 };
-BYTE RUINS3[] = { 1, 1, 1, 82 };
-BYTE RUINS4[] = { 1, 1, 2, 84 };
-BYTE RUINS5[] = { 1, 1, 2, 85 };
-BYTE RUINS6[] = { 1, 1, 2, 86 };
-BYTE RUINS7[] = { 1, 1, 8, 87 };
-BYTE PANCREAS1[] = { 5, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 108, 0, 0, 0, 0, 0, 0, 0 };
-BYTE PANCREAS2[] = { 5, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0 };
-BYTE CTRDOOR1[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 9, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
-BYTE CTRDOOR2[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 8, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
-BYTE CTRDOOR3[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 6, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
-BYTE CTRDOOR4[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 7, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
-BYTE CTRDOOR5[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 15, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
-BYTE CTRDOOR6[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 13, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
-BYTE CTRDOOR7[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 16, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
-BYTE CTRDOOR8[] = { 3, 3, 3, 1, 3, 0, 4, 0, 0, 14, 0, 0, 4, 0, 0, 1, 0, 0, 0, 0 };
+
+const BYTE BTYPESL2[161] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 0, 0, 0, 0, 0, 0, 0, 17, 18, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 2, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 0, 3, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+const BYTE BSTYPESL2[161] = { 0, 1, 2, 3, 0, 0, 6, 0, 0, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 2, 2, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 6, 6, 6, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 2, 2, 2, 0, 0, 0, 1, 1, 1, 1, 6, 2, 2, 2, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 3, 3, 1, 1, 2, 2, 3, 3, 3, 3, 1, 1, 3, 3, 2, 2, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+/** Miniset: Arch vertical. */
+const BYTE VARCH1[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 7,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH2[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 8,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH3[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 6,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH4[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 9,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH5[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 14,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH6[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 13,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH7[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 16,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH8[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 1,
+	3, 4,
+	0, 15,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH9[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 8,
+	3, 4,
+	0, 7,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH10[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 8,
+	3, 4,
+	0, 8,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH11[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 8,
+	3, 4,
+	0, 6,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH12[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 8,
+	3, 4,
+	0, 9,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH13[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  8,
+	3,  4,
+	0, 14,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH14[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  8,
+	3,  4,
+	0, 13,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH15[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  8,
+	3,  4,
+	0, 16,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - corner. */
+const BYTE VARCH16[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  8,
+	3,  4,
+	0, 15,
+
+	48,  0, // replace
+	51, 42,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH17[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2, 7, // search
+	3, 4,
+	0, 7,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH18[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2, 7, // search
+	3, 4,
+	0, 8,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH19[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2, 7, // search
+	3, 4,
+	0, 6,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH20[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2, 7, // search
+	3, 4,
+	0, 9,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH21[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2,  7, // search
+	3,  4,
+	0, 14,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH22[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2,  7, // search
+	3,  4,
+	0, 13,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH23[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2,  7, // search
+	3,  4,
+	0, 16,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - open wall. */
+const BYTE VARCH24[] = {
+	// clang-format off
+	2, 3, // width, height
+
+	2,  7, // search
+	3,  4,
+	0, 15,
+
+	141, 39, // replace
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH25[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 4,
+	3, 1,
+	0, 7,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH26[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 4,
+	3, 1,
+	0, 8,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH27[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 4,
+	3, 1,
+	0, 6,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH28[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3, 0, // search
+	3, 4,
+	3, 1,
+	0, 9,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH29[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  4,
+	3,  1,
+	0, 14,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH30[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  4,
+	3,  1,
+	0, 13,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH31[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  4,
+	3,  1,
+	0, 16,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical. */
+const BYTE VARCH32[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	3,  0, // search
+	3,  4,
+	3,  1,
+	0, 15,
+
+	48,  0, // replace
+	51, 39,
+	47, 44,
+	 0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH33[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2, 0, // search
+	3, 8,
+	3, 4,
+	0, 7,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH34[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2, 0, // search
+	3, 8,
+	3, 4,
+	0, 8,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH35[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2, 0, // search
+	3, 8,
+	3, 4,
+	0, 6,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH36[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2, 0, // search
+	3, 8,
+	3, 4,
+	0, 9,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH37[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2,  0, // search
+	3,  8,
+	3,  4,
+	0, 14,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH38[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2,  0, // search
+	3,  8,
+	3,  4,
+	0, 13,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH39[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2,  0, // search
+	3,  8,
+	3,  4,
+	0, 16,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch vertical - room west entrance. */
+const BYTE VARCH40[] = {
+	// clang-format off
+	2, 4, // width, height
+
+	2,  0, // search
+	3,  8,
+	3,  4,
+	0, 15,
+
+	142,  0, // replace
+	 51, 42,
+	 47, 44,
+	  0,  0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH1[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	2, 5, 9,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH2[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	2, 5, 6,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH3[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	2, 5, 8,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH4[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	2, 5, 7,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH5[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	2, 5, 15,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH6[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	2, 5, 16,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH7[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	2, 5, 13,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH8[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	2, 5, 14,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH9[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	8, 5, 9,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH10[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	8, 5, 6,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH11[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	8, 5, 8,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH12[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	8, 5, 7,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH13[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	8, 5, 15,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH14[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	8, 5, 16,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH15[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	8, 5, 13,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - north corner. */
+const BYTE HARCH16[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	8, 5, 14,
+
+	49, 46, 0, // replace
+	43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH17[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 9,
+
+	140, 46, 0, // replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH18[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 6,
+
+	140, 46, 0, // Replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH19[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 8,
+
+	140, 46, 0, // replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH20[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 7,
+
+	140, 46, 0, // replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH21[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 15,
+
+	140, 46, 0, // replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH22[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 16,
+
+	140, 46, 0, // replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH23[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 13,
+
+	140, 46, 0, // replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - wall. */
+const BYTE HARCH24[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	8, 5, 14,
+
+	140, 46, 0, // replace
+	 43, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH25[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	5, 2, 9,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH26[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	5, 2, 6,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH27[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	5, 2, 8,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH28[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3, 0, // search
+	5, 2, 7,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH29[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	5, 2, 15,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH30[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	5, 2, 16,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH31[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	5, 2, 13,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal. */
+const BYTE HARCH32[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	3, 3,  0, // search
+	5, 2, 14,
+
+	49, 46, 0, // replace
+	40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH33[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	9, 5, 9,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH34[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	9, 5, 6,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH35[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	9, 5, 8,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH36[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	9, 5, 7,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH37[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3, 0, // search
+	9, 5, 15,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH38[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3,  0, // search
+	9, 5, 16,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH39[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3,  0, // search
+	9, 5, 13,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Arch horizontal - west corner. */
+const BYTE HARCH40[] = {
+	// clang-format off
+	3, 2, // width, height
+
+	1, 3,  0, // search
+	9, 5, 14,
+
+	140, 46, 0, // replace
+	 40, 45, 0,
+	// clang-format on
+};
+/** Miniset: Stairs up. */
+const BYTE USTAIRS[] = {
+	// clang-format off
+	4, 4, // width, height
+
+	3, 3, 3, 3, // search
+	3, 3, 3, 3,
+	3, 3, 3, 3,
+	3, 3, 3, 3,
+
+	0,  0,  0, 0, // replace
+	0, 72, 77, 0,
+	0, 76,  0, 0,
+	0,  0,  0, 0,
+	// clang-format on
+};
+/** Miniset: Stairs down. */
+const BYTE DSTAIRS[] = {
+	// clang-format off
+	4, 4, // width, height
+
+	3, 3, 3, 3, // search
+	3, 3, 3, 3,
+	3, 3, 3, 3,
+	3, 3, 3, 3,
+
+	0,  0,  0, 0, // replace
+	0, 48, 71, 0,
+	0, 50, 78, 0,
+	0,  0,  0, 0,
+	// clang-format on
+};
+/** Miniset: Stairs to town. */
+const BYTE WARPSTAIRS[] = {
+	// clang-format off
+	4, 4, // width, height
+
+	3, 3, 3, 3, // search
+	3, 3, 3, 3,
+	3, 3, 3, 3,
+	3, 3, 3, 3,
+
+	0,   0,   0, 0, // replace
+	0, 158, 160, 0,
+	0, 159,   0, 0,
+	0,   0,   0, 0,
+	// clang-format on
+};
+/** Miniset: Crumbled south pillar. */
+const BYTE CRUSHCOL[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3, 1, 3, // search
+	2, 6, 3,
+	3, 3, 3,
+
+	0,  0, 0, // replace
+	0, 83, 0,
+	0,  0, 0,
+	// clang-format on
+};
+/** Miniset: Vertical oil spill. */
+const BYTE BIG1[] = {
+	// clang-format off
+	2, 2, // width, height
+
+	3, 3, // search
+	3, 3,
+
+	113, 0, // replace
+	112, 0,
+	// clang-format on
+};
+/** Miniset: Horizontal oil spill. */
+const BYTE BIG2[] = {
+	// clang-format off
+	2, 2, // width, height
+
+	3, 3, // search
+	3, 3,
+
+	114, 115, // replace
+	  0,   0,
+	// clang-format on
+};
+/** Miniset: Horizontal platform. */
+const BYTE BIG3[] = {
+	// clang-format off
+	1, 2, // width, height
+
+	1, // search
+	1,
+
+	117, // replace
+	116,
+	// clang-format on
+};
+/** Miniset: Vertical platform. */
+const BYTE BIG4[] = {
+	// clang-format off
+	2, 1, // width, height
+
+	2, 2, // search
+
+	118, 119, // replace
+	// clang-format on
+};
+/** Miniset: Large oil spill. */
+const BYTE BIG5[] = {
+	// clang-format off
+	2, 2, // width, height
+
+	3, 3, // search
+	3, 3,
+
+	120, 122, // replace
+	121, 123,
+	// clang-format on
+};
+/** Miniset: Vertical wall with debris. */
+const BYTE BIG6[] = {
+	// clang-format off
+	1, 2, // width, height
+
+	1, // search
+	1,
+
+	125, // replace
+	124,
+	// clang-format on
+};
+/** Miniset: Horizontal wall with debris. */
+const BYTE BIG7[] = {
+	// clang-format off
+	2, 1, // width, height
+
+	2, 2, // search
+
+	126, 127, // replace
+	// clang-format on
+};
+/** Miniset: Rock pile. */
+const BYTE BIG8[] = {
+	// clang-format off
+	2, 2, // width, height
+
+	3, 3, // search
+	3, 3,
+
+	128, 130, // replace
+	129, 131,
+	// clang-format on
+};
+/** Miniset: Vertical wall collapsed. */
+const BYTE BIG9[] = {
+	// clang-format off
+	2, 2, // width, height
+
+	1, 3, // search
+	1, 3,
+
+	133, 135, // replace
+	132, 134,
+	// clang-format on
+};
+/** Miniset: Horizontal wall collapsed. */
+const BYTE BIG10[] = {
+	// clang-format off
+	2, 2, // width, height
+
+	2, 2, // search
+	3, 3,
+
+	136, 137, // replace
+	  3,   3,
+	// clang-format on
+};
+/** Miniset: Crumbled vertical wall 1. */
+const BYTE RUINS1[] = {
+	// clang-format off
+	1, 1, // width, height
+
+	1, // search
+
+	80, // replace
+	// clang-format on
+};
+/** Miniset: Crumbled vertical wall 2. */
+const BYTE RUINS2[] = {
+	// clang-format off
+	1, 1, // width, height
+
+	1, // search
+
+	81, // replace
+	// clang-format on
+};
+/** Miniset: Crumbled vertical wall 3. */
+const BYTE RUINS3[] = {
+	// clang-format off
+	1, 1, // width, height
+
+	1, // search
+
+	82, // replace
+	// clang-format on
+};
+/** Miniset: Crumbled horizontal wall 1. */
+const BYTE RUINS4[] = {
+	// clang-format off
+	1, 1, // width, height
+
+	2, // search
+
+	84, // replace
+	// clang-format on
+};
+/** Miniset: Crumbled horizontal wall 2. */
+const BYTE RUINS5[] = {
+	// clang-format off
+	1, 1, // width, height
+
+	2, // search
+
+	85, // replace
+	// clang-format on
+};
+/** Miniset: Crumbled horizontal wall 3. */
+const BYTE RUINS6[] = {
+	// clang-format off
+	1, 1, // width, height
+
+	2, // search
+
+	86, // replace
+	// clang-format on
+};
+/** Miniset: Crumbled north pillar. */
+const BYTE RUINS7[] = {
+	// clang-format off
+	1, 1, // width, height
+
+	8, // search
+
+	87, // replace
+	// clang-format on
+};
+/** Miniset: Bloody gib 1. */
+const BYTE PANCREAS1[] = {
+	// clang-format off
+	5, 3, // width, height
+
+	3, 3, 3, 3, 3, // search
+	3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3,
+
+	0, 0,   0, 0, 0, // replace
+	0, 0, 108, 0, 0,
+	0, 0,   0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Bloody gib 2. */
+const BYTE PANCREAS2[] = {
+	// clang-format off
+	5, 3, // width, height
+
+	3, 3, 3, 3, 3, // search
+	3, 3, 3, 3, 3,
+	3, 3, 3, 3, 3,
+
+	0, 0,   0, 0, 0, // replace
+	0, 0, 110, 0, 0,
+	0, 0,   0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 1. */
+const BYTE CTRDOOR1[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3, 1, 3,  // search
+	0, 4, 0,
+	0, 9, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 2. */
+const BYTE CTRDOOR2[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3, 1, 3, // search
+	0, 4, 0,
+	0, 8, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 3. */
+const BYTE CTRDOOR3[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3, 1, 3, // search
+	0, 4, 0,
+	0, 6, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 4. */
+const BYTE CTRDOOR4[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3, 1, 3, // search
+	0, 4, 0,
+	0, 7, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 5. */
+const BYTE CTRDOOR5[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3,  1, 3, // search
+	0,  4, 0,
+	0, 15, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 6. */
+const BYTE CTRDOOR6[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3,  1, 3, // search
+	0,  4, 0,
+	0, 13, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 7. */
+const BYTE CTRDOOR7[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3,  1, 3, // search
+	0,  4, 0,
+	0, 16, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+/** Miniset: Move vertical doors away from west pillar 8. */
+const BYTE CTRDOOR8[] = {
+	// clang-format off
+	3, 3, // width, height
+
+	3,  1, 3, // search
+	0,  4, 0,
+	0, 14, 0,
+
+	0, 4, 0, // replace
+	0, 1, 0,
+	0, 0, 0,
+	// clang-format on
+};
+
 int Patterns[100][10] = {
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 3 },
 	{ 0, 0, 0, 0, 2, 0, 0, 0, 0, 3 },
@@ -208,37 +1596,9 @@ int Patterns[100][10] = {
 	{ 4, 1, 1, 1, 1, 1, 2, 1, 1, 14 },
 	{ 1, 1, 1, 1, 1, 1, 1, 1, 2, 8 },
 	{ 0, 0, 0, 0, 255, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
-	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
-static BOOL DRLG_L2PlaceMiniSet(BYTE *miniset, int tmin, int tmax, int cx, int cy, BOOL setview, int ldir)
+static BOOL DRLG_L2PlaceMiniSet(const BYTE *miniset, int tmin, int tmax, int cx, int cy, BOOL setview, int ldir)
 {
 	int sx, sy, sw, sh, xx, yy, i, ii, numt, bailcnt;
 	BOOL found;
@@ -324,7 +1684,7 @@ static BOOL DRLG_L2PlaceMiniSet(BYTE *miniset, int tmin, int tmax, int cx, int c
 	return TRUE;
 }
 
-static void DRLG_L2PlaceRndSet(BYTE *miniset, int rndper)
+static void DRLG_L2PlaceRndSet(const BYTE *miniset, int rndper)
 {
 	int sx, sy, sw, sh, xx, yy, ii, kk;
 	BOOL found;
@@ -470,13 +1830,13 @@ static void DRLG_LoadL2SP()
 {
 	setloadflag = FALSE;
 
-	if (QuestStatus(QTYPE_BLIND)) {
+	if (QuestStatus(Q_BLIND)) {
 		pSetPiece = LoadFileInMem("Levels\\L2Data\\Blind2.DUN", NULL);
 		setloadflag = TRUE;
-	} else if (QuestStatus(QTYPE_BLOOD)) {
+	} else if (QuestStatus(Q_BLOOD)) {
 		pSetPiece = LoadFileInMem("Levels\\L2Data\\Blood1.DUN", NULL);
 		setloadflag = TRUE;
-	} else if (QuestStatus(QTYPE_BONE)) {
+	} else if (QuestStatus(Q_SCHAMB)) {
 		pSetPiece = LoadFileInMem("Levels\\L2Data\\Bonestr2.DUN", NULL);
 		setloadflag = TRUE;
 	}
@@ -781,8 +2141,6 @@ static void ConnectHall(int nX1, int nY1, int nX2, int nY2, int nHd)
 	nOrigY1 = nY1;
 	CreateDoorType(nX1, nY1);
 	CreateDoorType(nX2, nY2);
-	nDx = abs(nX2 - nX1); /* unused */
-	nDy = abs(nY2 - nY1); /* unused */
 	nCurrd = nHd;
 	nX2 -= Dir_Xadd[nCurrd];
 	nY2 -= Dir_Yadd[nCurrd];
@@ -1383,21 +2741,21 @@ static BOOL CreateDungeon()
 
 	switch (currlevel) {
 	case 5:
-		if (quests[QTYPE_BLOOD]._qactive) {
+		if (quests[Q_BLOOD]._qactive != QUEST_NOTAVAIL) {
 			ForceHW = TRUE;
 			ForceH = 20;
 			ForceW = 14;
 		}
 		break;
 	case 6:
-		if (quests[QTYPE_BONE]._qactive) {
+		if (quests[Q_SCHAMB]._qactive != QUEST_NOTAVAIL) {
 			ForceHW = TRUE;
 			ForceW = 10;
 			ForceH = 10;
 		}
 		break;
 	case 7:
-		if (quests[QTYPE_BLIND]._qactive) {
+		if (quests[Q_BLIND]._qactive != QUEST_NOTAVAIL) {
 			ForceHW = TRUE;
 			ForceW = 15;
 			ForceH = 15;
@@ -1485,8 +2843,7 @@ static void DRLG_L2Pass3()
 	v3 = SDL_SwapLE16(*(MegaTiles + 2)) + 1;
 	v4 = SDL_SwapLE16(*(MegaTiles + 3)) + 1;
 
-	for (j = 0; j < MAXDUNY; j += 2)
-	{
+	for (j = 0; j < MAXDUNY; j += 2) {
 		for (i = 0; i < MAXDUNX; i += 2) {
 			dPiece[i][j] = v1;
 			dPiece[i + 1][j] = v2;
@@ -1745,30 +3102,30 @@ static void DRLG_L2(int entry)
 		}
 		DRLG_L2FloodTVal();
 		DRLG_L2TransFix();
-		if (entry == 0) {
-			doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, 1, 0);
+		if (entry == ENTRY_MAIN) {
+			doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, TRUE, 0);
 			if (doneflag) {
-				doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, 0, 1);
+				doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, FALSE, 1);
 				if (doneflag && currlevel == 5) {
-					doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, 0, 6);
+					doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, FALSE, 6);
 				}
 			}
 			ViewY -= 2;
-		} else if (entry == 1) {
-			doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, 0, 0);
+		} else if (entry == ENTRY_PREV) {
+			doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, FALSE, 0);
 			if (doneflag) {
-				doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, 1, 1);
+				doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, TRUE, 1);
 				if (doneflag && currlevel == 5) {
-					doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, 0, 6);
+					doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, FALSE, 6);
 				}
 			}
 			ViewX--;
 		} else {
-			doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, 0, 0);
+			doneflag = DRLG_L2PlaceMiniSet(USTAIRS, 1, 1, -1, -1, FALSE, 0);
 			if (doneflag) {
-				doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, 0, 1);
+				doneflag = DRLG_L2PlaceMiniSet(DSTAIRS, 1, 1, -1, -1, FALSE, 1);
 				if (doneflag && currlevel == 5) {
-					doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, 1, 6);
+					doneflag = DRLG_L2PlaceMiniSet(WARPSTAIRS, 1, 1, -1, -1, TRUE, 6);
 				}
 			}
 			ViewY -= 2;
@@ -1924,23 +3281,23 @@ static void DRLG_InitL2Vals()
 			} else {
 				continue;
 			}
-			dArch[i][j] = pc;
+			dSpecial[i][j] = pc;
 		}
 	}
 	for (j = 0; j < MAXDUNY; j++) {
 		for (i = 0; i < MAXDUNX; i++) {
 			if (dPiece[i][j] == 132) {
-				dArch[i][j + 1] = 2;
-				dArch[i][j + 2] = 1;
+				dSpecial[i][j + 1] = 2;
+				dSpecial[i][j + 2] = 1;
 			} else if (dPiece[i][j] == 135 || dPiece[i][j] == 139) {
-				dArch[i + 1][j] = 3;
-				dArch[i + 2][j] = 4;
+				dSpecial[i + 1][j] = 3;
+				dSpecial[i + 2][j] = 4;
 			}
 		}
 	}
 }
 
-void LoadL2Dungeon(char *sFileName, int vx, int vy)
+void LoadL2Dungeon(const char *sFileName, int vx, int vy)
 {
 	int i, j, rw, rh, pc;
 	BYTE *pLevelMap, *lm;
@@ -2008,17 +3365,17 @@ void LoadL2Dungeon(char *sFileName, int vx, int vy)
 			if (dPiece[i][j] == 17) {
 				pc = 6;
 			}
-			dArch[i][j] = pc;
+			dSpecial[i][j] = pc;
 		}
 	}
 	for (j = 0; j < MAXDUNY; j++) {
 		for (i = 0; i < MAXDUNX; i++) {
 			if (dPiece[i][j] == 132) {
-				dArch[i][j + 1] = 2;
-				dArch[i][j + 2] = 1;
+				dSpecial[i][j + 1] = 2;
+				dSpecial[i][j + 2] = 1;
 			} else if (dPiece[i][j] == 135 || dPiece[i][j] == 139) {
-				dArch[i + 1][j] = 3;
-				dArch[i + 2][j] = 4;
+				dSpecial[i + 1][j] = 3;
+				dSpecial[i + 2][j] = 4;
 			}
 		}
 	}
@@ -2030,7 +3387,7 @@ void LoadL2Dungeon(char *sFileName, int vx, int vy)
 	mem_free_dbg(pLevelMap);
 }
 
-void LoadPreL2Dungeon(char *sFileName, int vx, int vy)
+void LoadPreL2Dungeon(const char *sFileName, int vx, int vy)
 {
 	int i, j, rw, rh;
 	BYTE *pLevelMap, *lm;
@@ -2081,14 +3438,14 @@ void LoadPreL2Dungeon(char *sFileName, int vx, int vy)
 
 void CreateL2Dungeon(DWORD rseed, int entry)
 {
-	if (gbMaxPlayers == 1) {
-		if (currlevel == 7 && !quests[QTYPE_BLIND]._qactive) {
+	if (!gbIsMultiplayer) {
+		if (currlevel == 7 && quests[Q_BLIND]._qactive == QUEST_NOTAVAIL) {
 			currlevel = 6;
 			CreateL2Dungeon(glSeedTbl[6], 4);
 			currlevel = 7;
 		}
 		if (currlevel == 8) {
-			if (!quests[QTYPE_BLIND]._qactive) {
+			if (quests[Q_BLIND]._qactive == QUEST_NOTAVAIL) {
 				currlevel = 6;
 				CreateL2Dungeon(glSeedTbl[6], 4);
 				currlevel = 8;
@@ -2118,4 +3475,3 @@ void CreateL2Dungeon(DWORD rseed, int entry)
 }
 
 DEVILUTION_END_NAMESPACE
-#endif

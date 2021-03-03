@@ -1,9 +1,16 @@
-#include <algorithm>
-
+/**
+ * @file dx.cpp
+ *
+ * Implementation of functions setting up the graphics pipeline.
+ */
 #include "all.h"
 #include "../3rdParty/Storm/Source/storm.h"
 #include "display.h"
 #include <SDL.h>
+
+#ifdef __3DS__
+#include <3ds.h>
+#endif
 
 namespace dvl {
 
@@ -13,10 +20,9 @@ BYTE *gpBuffer;
 int locktbl[256];
 #endif
 static CCritSect sgMemCrit;
-HMODULE ghDiabMod;
 
+int vsyncEnabled;
 int refreshDelay;
-SDL_Window *window;
 SDL_Renderer *renderer;
 SDL_Texture *texture;
 
@@ -25,7 +31,7 @@ SDL_Palette *palette;
 unsigned int pal_surface_palette_version = 0;
 
 /** 24-bit renderer texture surface */
-SDL_Surface *renderer_texture_surface = nullptr;
+SDL_Surface *renderer_texture_surface = NULL;
 
 /** 8-bit surface wrapper around #gpBuffer */
 SDL_Surface *pal_surface;
@@ -38,6 +44,7 @@ static void dx_create_back_buffer()
 	}
 
 	gpBuffer = (BYTE *)pal_surface->pixels;
+	gpBufEnd = gpBuffer;
 
 #ifndef USE_SDL1
 	// In SDL2, `pal_surface` points to the global `palette`.
@@ -59,20 +66,20 @@ static void dx_create_primary_surface()
 		int width, height;
 		SDL_RenderGetLogicalSize(renderer, &width, &height);
 		Uint32 format;
-		if (SDL_QueryTexture(texture, &format, nullptr, nullptr, nullptr) < 0)
+		if (SDL_QueryTexture(texture, &format, NULL, NULL, NULL) < 0)
 			ErrSdl();
 		renderer_texture_surface = SDL_CreateRGBSurfaceWithFormat(0, width, height, SDL_BITSPERPIXEL(format), format);
 	}
 #endif
-	if (GetOutputSurface() == nullptr) {
+	if (GetOutputSurface() == NULL) {
 		ErrSdl();
 	}
 }
 
-void dx_init(HWND hWnd)
+void dx_init()
 {
-	SDL_RaiseWindow(window);
-	SDL_ShowWindow(window);
+	SDL_RaiseWindow(ghMainWnd);
+	SDL_ShowWindow(ghMainWnd);
 
 	dx_create_primary_surface();
 	palette_init();
@@ -86,15 +93,15 @@ static void lock_buf_priv()
 		return;
 	}
 
-	gpBufEnd += (uintptr_t)(BYTE *)pal_surface->pixels;
 	gpBuffer = (BYTE *)pal_surface->pixels;
+	gpBufEnd = (BYTE *)pal_surface->pixels + pal_surface->pitch * pal_surface->h;
 	sgdwLockCount++;
 }
 
 void lock_buf(BYTE idx)
 {
 #ifdef _DEBUG
-	locktbl[idx]++;
+	++locktbl[idx];
 #endif
 	lock_buf_priv();
 }
@@ -103,13 +110,12 @@ static void unlock_buf_priv()
 {
 	if (sgdwLockCount == 0)
 		app_fatal("draw main unlock error");
-	if (!gpBuffer)
+	if (gpBuffer == NULL)
 		app_fatal("draw consistency error");
 
 	sgdwLockCount--;
 	if (sgdwLockCount == 0) {
-		gpBufEnd -= (uintptr_t)gpBuffer;
-		//gpBuffer = NULL; unable to return to menu
+		gpBufEnd = gpBuffer;
 	}
 	sgMemCrit.Leave();
 }
@@ -119,7 +125,7 @@ void unlock_buf(BYTE idx)
 #ifdef _DEBUG
 	if (!locktbl[idx])
 		app_fatal("Draw lock underflow: 0x%x", idx);
-	locktbl[idx]--;
+	--locktbl[idx];
 #endif
 	unlock_buf_priv();
 }
@@ -127,40 +133,43 @@ void unlock_buf(BYTE idx)
 void dx_cleanup()
 {
 	if (ghMainWnd)
-		SDL_HideWindow(window);
+		SDL_HideWindow(ghMainWnd);
 	sgMemCrit.Enter();
 	sgdwLockCount = 0;
 	gpBuffer = NULL;
 	sgMemCrit.Leave();
 
-	if (pal_surface == nullptr)
+	if (pal_surface == NULL)
 		return;
 	SDL_FreeSurface(pal_surface);
-	pal_surface = nullptr;
+	pal_surface = NULL;
 	SDL_FreePalette(palette);
 	SDL_FreeSurface(renderer_texture_surface);
 	SDL_DestroyTexture(texture);
 	SDL_DestroyRenderer(renderer);
-	SDL_DestroyWindow(window);
+	SDL_DestroyWindow(ghMainWnd);
 }
 
 void dx_reinit()
 {
 #ifdef USE_SDL1
-	window = SDL_SetVideoMode(0, 0, 0, window->flags ^ SDL_FULLSCREEN);
-	if (window == NULL) {
+	Uint32 flags = ghMainWnd->flags ^ SDL_FULLSCREEN;
+	if (!IsFullScreen()) {
+		flags |= SDL_FULLSCREEN;
+	}
+	ghMainWnd = SDL_SetVideoMode(0, 0, 0, flags);
+	if (ghMainWnd == NULL) {
 		ErrSdl();
 	}
 #else
 	Uint32 flags = 0;
-	if (!fullscreen) {
+	if (!IsFullScreen()) {
 		flags = renderer ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_WINDOW_FULLSCREEN;
 	}
-	if (SDL_SetWindowFullscreen(window, flags)) {
+	if (SDL_SetWindowFullscreen(ghMainWnd, flags)) {
 		ErrSdl();
 	}
 #endif
-	fullscreen = !fullscreen;
 	force_redraw = 255;
 }
 
@@ -182,8 +191,8 @@ void Blit(SDL_Surface *src, SDL_Rect *src_rect, SDL_Rect *dst_rect)
 	SDL_Surface *dst = GetOutputSurface();
 #ifndef USE_SDL1
 	if (SDL_BlitSurface(src, src_rect, dst, dst_rect) < 0)
-			ErrSdl();
-		return;
+		ErrSdl();
+	return;
 #else
 	if (!OutputRequiresScaling()) {
 		if (SDL_BlitSurface(src, src_rect, dst, dst_rect) < 0)
@@ -192,7 +201,7 @@ void Blit(SDL_Surface *src, SDL_Rect *src_rect, SDL_Rect *dst_rect)
 	}
 
 	SDL_Rect scaled_dst_rect;
-	if (dst_rect != nullptr) {
+	if (dst_rect != NULL) {
 		scaled_dst_rect = *dst_rect;
 		ScaleOutputRect(&scaled_dst_rect);
 		dst_rect = &scaled_dst_rect;
@@ -210,7 +219,7 @@ void Blit(SDL_Surface *src, SDL_Rect *src_rect, SDL_Rect *dst_rect)
 		SDL_Surface *stretched = SDL_CreateRGBSurface(SDL_SWSURFACE, dst_rect->w, dst_rect->h, src->format->BitsPerPixel,
 		    src->format->Rmask, src->format->Gmask, src->format->BitsPerPixel, src->format->Amask);
 		SDL_SetColorKey(stretched, SDL_SRCCOLORKEY, src->format->colorkey);
-		if (src->format->palette != nullptr)
+		if (src->format->palette != NULL)
 			SDL_SetPalette(stretched, SDL_LOGPAL, src->format->palette->colors, 0, src->format->palette->ncolors);
 		SDL_Rect stretched_rect = { 0, 0, dst_rect->w, dst_rect->h };
 		if (SDL_SoftStretch(src, src_rect, stretched, &stretched_rect) < 0
@@ -265,6 +274,9 @@ void RenderPresent()
 		}
 
 		// Clear buffer to avoid artifacts in case the window was resized
+#ifndef __vita__
+		// There's no window resizing on vita, so texture always properly overwrites display area.
+		// Thus, there's no need to clear the screen and unnecessarily modify sdl render context state.
 		if (SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255) <= -1) { // TODO only do this if window was resized
 			ErrSdl();
 		}
@@ -272,18 +284,25 @@ void RenderPresent()
 		if (SDL_RenderClear(renderer) <= -1) {
 			ErrSdl();
 		}
-
+#endif
 		if (SDL_RenderCopy(renderer, texture, NULL, NULL) <= -1) {
 			ErrSdl();
 		}
 		SDL_RenderPresent(renderer);
+
+		if (!vsyncEnabled) {
+			LimitFrameRate();
+		}
 	} else {
-		if (SDL_UpdateWindowSurface(window) <= -1) {
+		if (SDL_UpdateWindowSurface(ghMainWnd) <= -1) {
 			ErrSdl();
 		}
 		LimitFrameRate();
 	}
 #else
+#ifdef __3DS__
+	gspWaitForVBlank();
+#endif
 	if (SDL_Flip(surface) <= -1) {
 		ErrSdl();
 	}

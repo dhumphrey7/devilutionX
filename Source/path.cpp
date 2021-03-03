@@ -1,32 +1,37 @@
+/**
+ * @file path.cpp
+ *
+ * Implementation of the path finding algorithms.
+ */
 #include "all.h"
 
 DEVILUTION_BEGIN_NAMESPACE
-
-// preallocated nodes, search is terminated after 300 nodes are visited
+/** Notes visisted by the path finding algorithm. */
 PATHNODE path_nodes[MAXPATHNODES];
-// size of the pnode_tblptr stack
+/** size of the pnode_tblptr stack */
 int gdwCurPathStep;
-// the number of in-use nodes in path_nodes
+/** the number of in-use nodes in path_nodes */
 int gdwCurNodes;
-/* for reconstructing the path after the A* search is done. The longest
+/**
+ * for reconstructing the path after the A* search is done. The longest
  * possible path is actually 24 steps, even though we can fit 25
  */
 int pnode_vals[MAX_PATH_LENGTH];
-// a linked list of all visited nodes
+/** A linked list of all visited nodes */
 PATHNODE *pnode_ptr;
-// a stack for recursively searching nodes
+/** A stack for recursively searching nodes */
 PATHNODE *pnode_tblptr[MAXPATHNODES];
-// a linked list of the A* frontier, sorted by distance
+/** A linked list of the A* frontier, sorted by distance */
 PATHNODE *path_2_nodes;
-PATHNODE path_unusednodes[MAXPATHNODES];
 
-// for iterating over the 8 possible movement directions
+/** For iterating over the 8 possible movement directions */
 const char pathxdir[8] = { -1, -1, 1, 1, -1, 0, 1, 0 };
 const char pathydir[8] = { -1, 1, -1, 1, 0, -1, 0, 1 };
 
 /* data */
 
-/* each step direction is assigned a number like this:
+/**
+ * each step direction is assigned a number like this:
  *       dx
  *     -1 0 1
  *     +-----
@@ -61,8 +66,7 @@ int FindPath(BOOL (*PosOk)(int, int, int), int PosOkArg, int sx, int sy, int dx,
 	// A* search until we find (dx,dy) or fail
 	while ((next_node = GetNextPath())) {
 		// reached the end, success!
-		if (next_node->x == dx && next_node->y == dy)
-		{
+		if (next_node->x == dx && next_node->y == dy) {
 			current = next_node;
 			path_length = 0;
 			while (current->Parent) {
@@ -265,9 +269,12 @@ BOOL path_parent_path(PATHNODE *pPath, int dx, int dy, int sx, int sy)
 PATHNODE *path_get_node1(int dx, int dy)
 {
 	PATHNODE *result = path_2_nodes->NextNode;
-	while (result != NULL && (result->x != dx || result->y != dy))
+	while (result != NULL) {
+		if (result->x == dx && result->y == dy)
+			return result;
 		result = result->NextNode;
-	return result;
+	}
+	return NULL;
 }
 
 /**
@@ -276,9 +283,12 @@ PATHNODE *path_get_node1(int dx, int dy)
 PATHNODE *path_get_node2(int dx, int dy)
 {
 	PATHNODE *result = pnode_ptr->NextNode;
-	while (result != NULL && (result->x != dx || result->y != dy))
+	while (result != NULL) {
+		if (result->x == dx && result->y == dy)
+			return result;
 		result = result->NextNode;
-	return result;
+	}
+	return NULL;
 }
 
 /**

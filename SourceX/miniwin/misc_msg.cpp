@@ -8,6 +8,7 @@
 #include "controls/controller_motion.h"
 #include "controls/game_controls.h"
 #include "controls/plrctrls.h"
+#include "controls/remap_keyboard.h"
 #include "controls/touch.h"
 #include "display.h"
 #include "controls/controller.h"
@@ -36,7 +37,7 @@ void SetCursorPos(int X, int Y)
 	mouseWarpingY = Y;
 	mouseWarping = true;
 	LogicalToOutput(&X, &Y);
-	SDL_WarpMouseInWindow(window, X, Y);
+	SDL_WarpMouseInWindow(ghMainWnd, X, Y);
 }
 
 // Moves the mouse to the first attribute "+" button.
@@ -73,7 +74,7 @@ void FocusOnCharInfo()
 	}
 	if (stat == -1)
 		return;
-	const auto &rect = ChrBtnsRect[stat];
+	const RECT32 &rect = ChrBtnsRect[stat];
 	SetCursorPos(rect.x + (rect.w / 2), rect.y + (rect.h / 2));
 }
 
@@ -82,6 +83,7 @@ static int translate_sdl_key(SDL_Keysym key)
 	// ref: https://wiki.libsdl.org/SDL_Keycode
 	// ref: https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
 	SDL_Keycode sym = key.sym;
+	remap_keyboard_key(&sym);
 	switch (sym) {
 	case SDLK_BACKSPACE:
 		return DVL_VK_BACK;
@@ -203,6 +205,10 @@ static int translate_sdl_key(SDL_Keysym key)
 		return DVL_VK_NUMPAD8;
 	case SDLK_KP_9:
 		return DVL_VK_NUMPAD9;
+#ifndef USE_SDL1
+	case SDLK_KP_000:
+	case SDLK_KP_00:
+#endif
 	case SDLK_KP_0:
 		return DVL_VK_NUMPAD0;
 	case SDLK_KP_PERIOD:
@@ -258,56 +264,11 @@ WPARAM keystate_for_mouse(WPARAM ret)
 
 bool false_avail(const char *name, int value)
 {
+#ifndef __vita__
+	// Logging on Vita is slow due slow IO, so disable spamming unhandled events to log
 	SDL_Log("Unhandled SDL event: %s %d", name, value);
+#endif
 	return true;
-}
-
-void StoreSpellCoords()
-{
-	constexpr int START_X = 20;
-	constexpr int END_X = 636;
-	constexpr int END_Y = 495;
-	constexpr int BOX_SIZE = 56;
-	speedspellcount = 0;
-	int xo = END_X, yo = END_Y;
-	for (int i = 0; i < 4; i++) {
-		std::uint64_t spells;
-		switch (i) {
-		case RSPLTYPE_SKILL:
-			spells = plr[myplr]._pAblSpells;
-			break;
-		case RSPLTYPE_SPELL:
-			spells = plr[myplr]._pMemSpells;
-			break;
-		case RSPLTYPE_SCROLL:
-			spells = plr[myplr]._pScrlSpells;
-			break;
-		case RSPLTYPE_CHARGES:
-			spells = plr[myplr]._pISpells;
-			break;
-		default:
-			continue;
-		}
-		std::uint64_t spell = 1;
-		for (int j = 1; j < MAX_SPELLS; j++) {
-			if ((spell & spells)) {
-				speedspellscoords[speedspellcount] = { xo - 36, yo - 188 };
-				++speedspellcount;
-				xo -= BOX_SIZE;
-				if (xo == START_X) {
-					xo = END_X;
-					yo -= BOX_SIZE;
-				}
-			}
-			spell <<= 1;
-		}
-		if (spells && xo != END_X)
-			xo -= BOX_SIZE;
-		if (xo == START_X) {
-			xo = END_X;
-			yo -= BOX_SIZE;
-		}
-	}
 }
 
 } // namespace
@@ -322,12 +283,10 @@ bool BlurInventory()
 		if (!TryDropItem()) {
 			if (plr[myplr]._pClass == PC_WARRIOR) {
 				PlaySFX(PS_WARR16); // "Where would I put this?"
-#ifndef SPAWN
 			} else if (plr[myplr]._pClass == PC_ROGUE) {
 				PlaySFX(PS_ROGUE16);
 			} else if (plr[myplr]._pClass == PC_SORCERER) {
 				PlaySFX(PS_MAGE16);
-#endif
 			}
 			return false;
 		}
@@ -342,7 +301,7 @@ bool BlurInventory()
 	return true;
 }
 
-bool PeekMessageA(LPMSG lpMsg)
+bool PeekMessage(LPMSG lpMsg)
 {
 #ifdef __SWITCH__
 	HandleDocking();
@@ -385,43 +344,45 @@ bool PeekMessageA(LPMSG lpMsg)
 		return true;
 	}
 
-	if (ProcessControllerMotion(e)) {
-		ScaleJoysticks();
+	if (HandleControllerAddedOrRemovedEvent(e))
 		return true;
-	}
+
+	const ControllerButtonEvent ctrl_event = ToControllerButtonEvent(e);
+	if (ProcessControllerMotion(e, ctrl_event))
+		return true;
 
 	GameAction action;
-	if (GetGameAction(e, &action)) {
-		if (action.type != GameActionType::NONE) {
+	if (GetGameAction(e, ctrl_event, &action)) {
+		if (action.type != GameActionType_NONE) {
 			sgbControllerActive = true;
 
 			if (movie_playing) {
 				lpMsg->message = DVL_WM_KEYDOWN;
-				if (action.type == GameActionType::SEND_KEY)
+				if (action.type == GameActionType_SEND_KEY)
 					lpMsg->wParam = action.send_key.vk_code;
 				return true;
 			}
 		}
 
 		switch (action.type) {
-		case GameActionType::NONE:
+		case GameActionType_NONE:
 			break;
-		case GameActionType::USE_HEALTH_POTION:
+		case GameActionType_USE_HEALTH_POTION:
 			UseBeltItem(BLT_HEALING);
 			break;
-		case GameActionType::USE_MANA_POTION:
+		case GameActionType_USE_MANA_POTION:
 			UseBeltItem(BLT_MANA);
 			break;
-		case GameActionType::PRIMARY_ACTION:
+		case GameActionType_PRIMARY_ACTION:
 			PerformPrimaryAction();
 			break;
-		case GameActionType::SECONDARY_ACTION:
+		case GameActionType_SECONDARY_ACTION:
 			PerformSecondaryAction();
 			break;
-		case GameActionType::CAST_SPELL:
+		case GameActionType_CAST_SPELL:
 			PerformSpellAction();
 			break;
-		case GameActionType::TOGGLE_QUICK_SPELL_MENU:
+		case GameActionType_TOGGLE_QUICK_SPELL_MENU:
 			if (!invflag || BlurInventory()) {
 				if (!spselflag)
 					DoSpeedBook();
@@ -433,7 +394,7 @@ bool PeekMessageA(LPMSG lpMsg)
 				StoreSpellCoords();
 			}
 			break;
-		case GameActionType::TOGGLE_CHARACTER_INFO:
+		case GameActionType_TOGGLE_CHARACTER_INFO:
 			chrflag = !chrflag;
 			if (chrflag) {
 				questlog = false;
@@ -443,7 +404,7 @@ bool PeekMessageA(LPMSG lpMsg)
 				FocusOnCharInfo();
 			}
 			break;
-		case GameActionType::TOGGLE_QUEST_LOG:
+		case GameActionType_TOGGLE_QUEST_LOG:
 			if (!questlog) {
 				StartQuestlog();
 				chrflag = false;
@@ -452,7 +413,7 @@ bool PeekMessageA(LPMSG lpMsg)
 				questlog = false;
 			}
 			break;
-		case GameActionType::TOGGLE_INVENTORY:
+		case GameActionType_TOGGLE_INVENTORY:
 			if (invflag) {
 				BlurInventory();
 			} else {
@@ -464,18 +425,18 @@ bool PeekMessageA(LPMSG lpMsg)
 				FocusOnInventory();
 			}
 			break;
-		case GameActionType::TOGGLE_SPELL_BOOK:
+		case GameActionType_TOGGLE_SPELL_BOOK:
 			if (BlurInventory()) {
 				invflag = false;
 				spselflag = false;
 				sbookflag = !sbookflag;
 			}
 			break;
-		case GameActionType::SEND_KEY:
+		case GameActionType_SEND_KEY:
 			lpMsg->message = action.send_key.up ? DVL_WM_KEYUP : DVL_WM_KEYDOWN;
 			lpMsg->wParam = action.send_key.vk_code;
 			return true;
-		case GameActionType::SEND_MOUSE_CLICK:
+		case GameActionType_SEND_MOUSE_CLICK:
 			sgbControllerActive = false;
 			switch (action.send_mouse_click.button) {
 			case GameActionSendMouseClick::LEFT:
@@ -489,7 +450,7 @@ bool PeekMessageA(LPMSG lpMsg)
 			break;
 		}
 		return true;
-	} else if (e.type < SDL_JOYAXISMOTION || e.type >= 0x700) {
+	} else if (e.type < SDL_JOYAXISMOTION || (e.type >= 0x700 && e.type < 0x800)) {
 		if (!mouseWarping || e.type != SDL_MOUSEMOTION)
 			sgbControllerActive = false;
 		if (mouseWarping && e.type == SDL_MOUSEMOTION)
@@ -497,15 +458,6 @@ bool PeekMessageA(LPMSG lpMsg)
 	}
 
 	switch (e.type) {
-#ifndef USE_SDL1
-	case SDL_CONTROLLERDEVICEADDED:
-	case SDL_CONTROLLERDEVICEREMOVED:
-		break;
-	case SDL_JOYDEVICEADDED:
-	case SDL_JOYDEVICEREMOVED:
-		InitController();
-		break;
-#endif
 	case SDL_QUIT:
 		lpMsg->message = DVL_WM_QUIT;
 		break;
@@ -585,13 +537,15 @@ bool PeekMessageA(LPMSG lpMsg)
 		case SDL_WINDOWEVENT_EXPOSED:
 			lpMsg->message = DVL_WM_PAINT;
 			break;
+		case SDL_WINDOWEVENT_LEAVE:
+			lpMsg->message = DVL_WM_CAPTURECHANGED;
+			break;
 		case SDL_WINDOWEVENT_MOVED:
 		case SDL_WINDOWEVENT_RESIZED:
 		case SDL_WINDOWEVENT_SIZE_CHANGED:
 		case SDL_WINDOWEVENT_MINIMIZED:
 		case SDL_WINDOWEVENT_MAXIMIZED:
 		case SDL_WINDOWEVENT_RESTORED:
-		case SDL_WINDOWEVENT_LEAVE:
 		case SDL_WINDOWEVENT_FOCUS_GAINED:
 		case SDL_WINDOWEVENT_FOCUS_LOST:
 #if SDL_VERSION_ATLEAST(2, 0, 5)
@@ -722,7 +676,7 @@ bool TranslateMessage(const MSG *lpMsg)
 #endif
 
 			// XXX: This does not add extended info to lParam
-			PostMessageA(DVL_WM_CHAR, key, 0);
+			PostMessage(DVL_WM_CHAR, key, 0);
 		}
 	}
 
@@ -756,14 +710,14 @@ SHORT GetAsyncKeyState(int vKey)
 	}
 }
 
-LRESULT DispatchMessageA(const MSG *lpMsg)
+void DispatchMessage(const MSG *lpMsg)
 {
 	assert(CurrentProc);
 
-	return CurrentProc(NULL, lpMsg->message, lpMsg->wParam, lpMsg->lParam);
+	CurrentProc(lpMsg->message, lpMsg->wParam, lpMsg->lParam);
 }
 
-bool PostMessageA(UINT Msg, WPARAM wParam, LPARAM lParam)
+bool PostMessage(UINT Msg, WPARAM wParam, LPARAM lParam)
 {
 	MSG msg;
 	msg.message = Msg;

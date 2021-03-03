@@ -1,3 +1,8 @@
+/**
+ * @file dthread.cpp
+ *
+ * Implementation of functions for updating game state from network commands.
+ */
 #include "all.h"
 #include "../3rdParty/Storm/Source/storm.h"
 
@@ -12,68 +17,7 @@ event_emul *sghWorkToDoEvent;
 /* rdata */
 static SDL_Thread *sghThread = NULL;
 
-void dthread_remove_player(int pnum)
-{
-	TMegaPkt *pkt;
-
-	sgMemCrit.Enter();
-	for (pkt = sgpInfoHead; pkt; pkt = pkt->pNext) {
-		if (pkt->dwSpaceLeft == pnum)
-			pkt->dwSpaceLeft = MAX_PLRS;
-	}
-	sgMemCrit.Leave();
-}
-
-void dthread_send_delta(int pnum, char cmd, void *pbSrc, int dwLen)
-{
-	TMegaPkt *pkt;
-	TMegaPkt *p;
-
-	if (gbMaxPlayers == 1) {
-		return;
-	}
-
-	pkt = (TMegaPkt *)DiabloAllocPtr(dwLen + 20);
-	pkt->pNext = NULL;
-	pkt->dwSpaceLeft = pnum;
-	pkt->data[0] = cmd;
-	*(DWORD *)&pkt->data[4] = dwLen;
-	memcpy(&pkt->data[8], pbSrc, dwLen);
-	sgMemCrit.Enter();
-	p = (TMegaPkt *)&sgpInfoHead;
-	while (p->pNext) {
-		p = p->pNext;
-	}
-	p->pNext = pkt;
-
-	SetEvent(sghWorkToDoEvent);
-	sgMemCrit.Leave();
-}
-
-void dthread_start()
-{
-	const char *error_buf;
-
-	if (gbMaxPlayers == 1) {
-		return;
-	}
-
-	sghWorkToDoEvent = StartEvent();
-	if (!sghWorkToDoEvent) {
-		error_buf = TraceLastError();
-		app_fatal("dthread:1\n%s", error_buf);
-	}
-
-	dthread_running = TRUE;
-
-	sghThread = CreateThread(dthread_handler, &glpDThreadId);
-	if (sghThread == NULL) {
-		error_buf = TraceLastError();
-		app_fatal("dthread2:\n%s", error_buf);
-	}
-}
-
-unsigned int dthread_handler(void *)
+static unsigned int dthread_handler(void *data)
 {
 	const char *error_buf;
 	TMegaPkt *pkt;
@@ -111,9 +55,69 @@ unsigned int dthread_handler(void *)
 	return 0;
 }
 
-void dthread_cleanup()
+void dthread_remove_player(int pnum)
+{
+	TMegaPkt *pkt;
+
+	sgMemCrit.Enter();
+	for (pkt = sgpInfoHead; pkt; pkt = pkt->pNext) {
+		if (pkt->dwSpaceLeft == pnum)
+			pkt->dwSpaceLeft = MAX_PLRS;
+	}
+	sgMemCrit.Leave();
+}
+
+void dthread_send_delta(int pnum, char cmd, void *pbSrc, int dwLen)
+{
+	TMegaPkt *pkt;
+	TMegaPkt *p;
+
+	if (!gbIsMultiplayer) {
+		return;
+	}
+
+	pkt = (TMegaPkt *)DiabloAllocPtr(dwLen + 20);
+	pkt->pNext = NULL;
+	pkt->dwSpaceLeft = pnum;
+	pkt->data[0] = cmd;
+	*(DWORD *)&pkt->data[4] = dwLen;
+	memcpy(&pkt->data[8], pbSrc, dwLen);
+	sgMemCrit.Enter();
+	p = (TMegaPkt *)&sgpInfoHead;
+	while (p->pNext) {
+		p = p->pNext;
+	}
+	p->pNext = pkt;
+
+	SetEvent(sghWorkToDoEvent);
+	sgMemCrit.Leave();
+}
+
+void dthread_start()
 {
 	const char *error_buf;
+
+	if (!gbIsMultiplayer) {
+		return;
+	}
+
+	sghWorkToDoEvent = StartEvent();
+	if (sghWorkToDoEvent == NULL) {
+		error_buf = TraceLastError();
+		app_fatal("dthread:1\n%s", error_buf);
+	}
+
+	dthread_running = TRUE;
+
+	sghThread = CreateThread(dthread_handler, &glpDThreadId);
+	if (sghThread == NULL) {
+		error_buf = TraceLastError();
+		app_fatal("dthread2:\n%s", error_buf);
+	}
+}
+
+void dthread_cleanup()
+{
 	TMegaPkt *tmp;
 
 	if (sghWorkToDoEvent == NULL) {

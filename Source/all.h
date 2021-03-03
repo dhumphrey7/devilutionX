@@ -1,3 +1,8 @@
+/**
+ * @file all.h
+ *
+ * Include all application headers.
+ */
 #ifndef __ALL_H__
 #define __ALL_H__
 
@@ -13,9 +18,6 @@
 
 #include "../types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "appfat.h"
 #include "automap.h"
 #include "capture.h"
@@ -23,7 +25,9 @@ extern "C" {
 #include "control.h"
 #include "cursor.h"
 #include "dead.h"
+#ifdef _DEBUG
 #include "debug.h"
+#endif
 #include "diablo.h"
 #include "doom.h"
 #include "drlg_l1.h"
@@ -84,12 +88,6 @@ extern "C" {
 #include "towners.h"
 #include "track.h"
 #include "trigs.h"
-#include "wave.h"
 #include "render.h" // linked last, likely .s/.asm
-#ifdef __cplusplus
-}
-#endif
-
-DEVILUTION_END_NAMESPACE
 
 #endif /* __ALL_H__ */
